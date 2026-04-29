@@ -106,14 +106,21 @@ async function handleJoin() {
 
   try {
     localStorage.setItem('ib-username', name);
-    localIdentity = name;
+
+    const uniqueIdentity = `${name}-${crypto.randomUUID().slice(0, 8)}`;
+
+    localIdentity = uniqueIdentity;
     roomName = room;
     meetingTitle = $('input-room').value.trim();
 
     const res = await fetch('/api/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ room, username: name })
+      body: JSON.stringify({
+        room,
+        username: name,
+        identity: uniqueIdentity
+      })
     });
     if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Server error'); }
     const { token, url } = await res.json();
@@ -165,8 +172,9 @@ async function connectToRoom(wsUrl, token) {
   livekitRoom.on(RoomEvent.Disconnected,            onDisconnected);
 
   await livekitRoom.connect(wsUrl, token);
+  localIdentity = livekitRoom.localParticipant.identity;
   await livekitRoom.localParticipant.enableCameraAndMicrophone();
-
+  
   // Add local tile
   createTile(localIdentity, localIdentity + ' / You', true);
   attachLocalVideo();
