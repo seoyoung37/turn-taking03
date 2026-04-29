@@ -62,6 +62,35 @@ function showToast(msg, ms = 2000) {
   setTimeout(() => t.classList.remove('show'), ms);
 }
 
+// FIX: Show a persistent prompt when browser blocks audio autoplay.
+// This happens on mobile/other devices that require user gesture first.
+function showAudioPrompt() {
+  let prompt = document.getElementById('audio-prompt');
+  if (prompt) return; // already showing
+
+  prompt = document.createElement('div');
+  prompt.id = 'audio-prompt';
+  prompt.style.cssText = `
+    position:fixed;bottom:88px;left:50%;transform:translateX(-50%);
+    background:#1d1d1f;color:#fff;border-radius:12px;
+    padding:12px 20px;font-size:.82rem;font-weight:500;
+    cursor:pointer;z-index:200;box-shadow:0 4px 20px rgba(0,0,0,.2);
+    display:flex;align-items:center;gap:8px;white-space:nowrap;
+  `;
+  prompt.innerHTML = `
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <path d="M2 4h3l4-3v12l-4-3H2V4z" stroke="white" stroke-width="1.2" stroke-linejoin="round"/>
+      <path d="M10 5c.8.6 1.5 1.7 1.5 3s-.7 2.4-1.5 3" stroke="white" stroke-width="1.2" stroke-linecap="round"/>
+    </svg>
+    Tap to enable audio
+  `;
+  prompt.onclick = async () => {
+    await livekitRoom.startAudio();
+    prompt.remove();
+  };
+  document.body.appendChild(prompt);
+}
+
 // ── URL PARSING ───────────────────────────────────────
 function parseUrl() {
   const p = new URLSearchParams(location.search);
@@ -164,15 +193,34 @@ async function connectToRoom(wsUrl, token) {
   livekitRoom.on(RoomEvent.TrackUnmuted,            onTrackUnmuted);
   livekitRoom.on(RoomEvent.Disconnected,            onDisconnected);
 
-  await livekitRoom.connect(wsUrl, token);
+  // FIX: Handle browser audio autoplay block
+  // Browsers block audio until the user interacts. LiveKit detects this
+  // and fires AudioPlaybackStatusChanged — we show a prompt and resume.
+  livekitRoom.on(RoomEvent.AudioPlaybackStatusChanged, () => {
+    if (!livekitRoom.canPlaybackAudio) {
+      showAudioPrompt();
+    }
+  });
+
+  // FIX: explicitly request autoSubscribe so all remote tracks are received
+  await livekitRoom.connect(wsUrl, token, { autoSubscribe: true });
   await livekitRoom.localParticipant.enableCameraAndMicrophone();
 
   // Add local tile
   createTile(localIdentity, localIdentity + ' / You', true);
   attachLocalVideo();
 
-  // Add existing remote participants
-  livekitRoom.remoteParticipants.forEach(p => onParticipantConnected(p));
+  // FIX: For participants already in the room, their TrackSubscribed events
+  // may have already fired before we set up the pMap. Re-attach manually.
+  livekitRoom.remoteParticipants.forEach(p => {
+    onParticipantConnected(p);
+    // Attach any tracks already subscribed
+    p.trackPublications.forEach((pub) => {
+      if (pub.isSubscribed && pub.track) {
+        onTrackSubscribed(pub.track, pub, p);
+      }
+    });
+  });
 
   // Start systems
   startLocalAudioAnalysis();
@@ -184,6 +232,12 @@ async function connectToRoom(wsUrl, token) {
 // ── PARTICIPANT EVENTS ────────────────────────────────
 function onParticipantConnected(participant) {
   createTile(participant.identity, participant.name || participant.identity, false);
+  // FIX: attach any tracks that were already subscribed before this event fired
+  participant.trackPublications.forEach((pub) => {
+    if (pub.isSubscribed && pub.track) {
+      onTrackSubscribed(pub.track, pub, participant);
+    }
+  });
   updateGridClass();
 }
 
@@ -196,6 +250,14 @@ function onParticipantDisconnected(participant) {
 
 function onTrackSubscribed(track, pub, participant) {
   const { Track } = LivekitClient;
+
+  // FIX: If TrackSubscribed fires before ParticipantConnected (race condition),
+  // create the tile now so the track isn't lost.
+  if (!pMap.has(participant.identity)) {
+    createTile(participant.identity, participant.name || participant.identity, false);
+    updateGridClass();
+  }
+
   const data = pMap.get(participant.identity);
   if (!data) return;
 
@@ -208,8 +270,11 @@ function onTrackSubscribed(track, pub, participant) {
     data.videoWrap.appendChild(el);
     data.videoEl = el;
   } else if (track.kind === Track.Kind.Audio) {
+    // FIX: attach audio to a dedicated element; LiveKit will auto-play it.
+    // Keep a reference so we can remove it when unsubscribed.
     const el = track.attach();
     el.style.display = 'none';
+    el.dataset.identity = participant.identity;
     document.body.appendChild(el);
   }
 }
@@ -219,6 +284,11 @@ function onTrackUnsubscribed(track, pub, participant) {
   const data = pMap.get(participant.identity);
   if (!data) return;
   if (track.kind === Track.Kind.Video) showCamOff(data);
+  // FIX: remove the detached audio element to prevent orphans
+  if (track.kind === Track.Kind.Audio) {
+    track.detach().forEach(el => el.remove());
+    document.querySelectorAll(`audio[data-identity="${participant.identity}"]`).forEach(el => el.remove());
+  }
 }
 
 function onTrackMuted(pub, participant) {
