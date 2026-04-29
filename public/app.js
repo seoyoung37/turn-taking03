@@ -921,21 +921,38 @@ function startLocalAudioAnalysis() {
 // ── MEDIAPIPE FACE DETECTION ──────────────────────────
 async function initMediaPipe() {
   try {
-    const visionModule = await import(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/+esm"
-    );
+    let visionModule = null;
+
+    /*
+      0.10.22 URL이 지금 404라서 실패하고 있음.
+      안정적으로 작동하는 0.10.3 버전으로 먼저 시도하고,
+      혹시 jsDelivr가 막히면 esm.sh로 fallback.
+    */
+    try {
+      visionModule = await import(
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm"
+      );
+      console.log("[InBetween] MediaPipe module loaded from jsDelivr.");
+    } catch (cdnError) {
+      console.warn("[InBetween] jsDelivr MediaPipe import failed. Retrying with esm.sh.", cdnError);
+
+      visionModule = await import(
+        "https://esm.sh/@mediapipe/tasks-vision@0.10.3"
+      );
+      console.log("[InBetween] MediaPipe module loaded from esm.sh.");
+    }
 
     const { FaceLandmarker, FilesetResolver } = visionModule;
 
     const filesetResolver = await FilesetResolver.forVisionTasks(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
     );
 
     async function createLandmarker(delegate) {
       return FaceLandmarker.createFromOptions(filesetResolver, {
         baseOptions: {
           modelAssetPath:
-            "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task",
+            "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
           delegate,
         },
         outputFaceBlendshapes: true,
@@ -946,17 +963,19 @@ async function initMediaPipe() {
 
     try {
       faceLandmarker = await createLandmarker("GPU");
-      console.log("[InBetween] MediaPipe ready with GPU.");
+      console.log("[InBetween] FaceLandmarker ready with GPU.");
     } catch (gpuError) {
-      console.warn("[InBetween] GPU MediaPipe failed. Retrying with CPU.", gpuError);
+      console.warn("[InBetween] GPU failed. Retrying FaceLandmarker with CPU.", gpuError);
       faceLandmarker = await createLandmarker("CPU");
-      console.log("[InBetween] MediaPipe ready with CPU.");
+      console.log("[InBetween] FaceLandmarker ready with CPU.");
     }
 
     mpRunning = true;
     runFaceDetection();
-  } catch (e) {
-    console.error("[InBetween] MediaPipe failed completely:", e);
+
+    showToast("Face tracking ready.", 1600);
+  } catch (error) {
+    console.error("[InBetween] MediaPipe failed completely:", error);
     showToast("Face tracking failed. Check console.", 4000);
   }
 }
@@ -997,7 +1016,7 @@ function runFaceDetection() {
     const leaning = detectLeaning(lm);
     const gazing = detectGazing(lm);
 
-    if (Math.random() < 0.02) {
+    if (Math.random() < 0.03) {
       console.log("[cue raw]", {
         lipOpen,
         gazing,
