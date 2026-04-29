@@ -276,11 +276,6 @@ async function connectToRoom(wsUrl, token) {
 
   await livekitRoom.connect(wsUrl, token, { autoSubscribe: true });
 
-  /*
-    중요:
-    서버가 발급한 실제 LiveKit identity로 다시 동기화.
-    이걸 안 하면 pMap.get(localIdentity)가 실패해서 cue가 적용 안 될 수 있음.
-  */
   localIdentity = livekitRoom.localParticipant.identity;
 
   await livekitRoom.localParticipant.enableCameraAndMicrophone();
@@ -539,9 +534,9 @@ function createTile(identity, displayName, isLocal) {
     const dots = document.createElement("div");
     dots.className = "cue-dots";
     dots.innerHTML = `
-      <span class="cue-dot" title="Lip open"></span>
-      <span class="cue-dot" title="Leaning"></span>
-      <span class="cue-dot" title="Gaze"></span>
+      <span class="cue-dot" title="Lip parting"></span>
+      <span class="cue-dot" title="Gazing at speaker"></span>
+      <span class="cue-dot" title="Leaning forward"></span>
     `;
     tile.appendChild(dots);
     cueDots = dots;
@@ -1128,8 +1123,8 @@ function applyLocalCues(lip, lean, gaze, data) {
     const dots = data.cueDots.querySelectorAll(".cue-dot");
 
     dots[0]?.classList.toggle("active", lip);
-    dots[1]?.classList.toggle("active", lean);
-    dots[2]?.classList.toggle("active", gaze);
+    dots[1]?.classList.toggle("active", gaze);
+    dots[2]?.classList.toggle("active", lean);
   }
 }
 
@@ -1164,8 +1159,9 @@ function applyCueVisual(data, cue) {
   }
 
   /*
-    A. Open mouth + Leaning Forward
-    강한 turn-claiming cue.
+    B. Open mouth + Leaning Forward
+    강한 turn-taking 신호.
+    아래쪽, 즉 입이 있는 부분이 앞으로 들리는 느낌.
   */
   if (cue.lip && cue.lean) {
     tile.style.transformOrigin = "top center";
@@ -1178,8 +1174,8 @@ function applyCueVisual(data, cue) {
   }
 
   /*
-    B. Open mouth + Gazing at Speaker
-    speaker 방향으로 약하게 부풀거나 들리는 cue.
+    A. Open mouth + Gazing at Speaker
+    speaker가 있는 방향으로 약하게 부풀거나 기울어지는 신호.
   */
   if (cue.lip && cue.gaze && speakerId) {
     if (wasLeaning) tile.style.transformOrigin = "";
@@ -1210,7 +1206,7 @@ function applyCueVisual(data, cue) {
   }
 
   /*
-    lip alone = no visual effect.
+    lip alone = 시각 효과 없음.
   */
   if (wasLeaning) {
     setTimeout(() => {

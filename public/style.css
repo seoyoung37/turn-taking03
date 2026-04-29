@@ -313,24 +313,25 @@ nav {
    Only two visual cue states exist: gaze-pull and leaning. */
 
 .tile.leaning:not(.speaker):not(.held-speaker) {
-  /* Open mouth + Leaning Forward: BOTTOM (mouth area) rises toward viewer first.
-     transform-origin switched to top center via JS so the bottom swings forward.
-     Strong turn-claiming signal. */
-  transform: perspective(700px) rotateX(-20deg);
-  box-shadow: 0 20px 48px rgba(0,0,0,.13);
-  border-color: rgba(0,0,0,.16);
+    transform: perspective(700px) rotateX(-28deg) translateY(-10px) scale(1.035);
+    box-shadow: 0 20px 48px rgba(0,0,0,.14);
+    border-color: rgba(0,0,0,.18);
 }
 
 .tile.gaze-pull:not(.speaker):not(.held-speaker) {
-  /* Open mouth + Gazing at Speaker: subtle directional inflation.
-     The edge closest to the speaker rises slightly. Weak signal.
-     --pull-y: -1 = speaker above (top edge inflates), +1 = speaker below
-     --pull-x: -1 = speaker left (left edge rises), +1 = speaker right */
-  transform: perspective(700px)
-    rotateX(calc(42deg + var(--pull-y, 0) * 14deg))
-    rotateY(calc(var(--pull-x, 0) * 12deg));
-  border-color: rgba(0,113,227,.14);
-  box-shadow: 0 6px 20px rgba(0,113,227,.06);
+  transform:
+    perspective(700px)
+    rotateX(calc(42deg + var(--pull-y, 0) * 22deg))
+    rotateY(calc(var(--pull-x, 0) * -22deg))
+    translate3d(
+      calc(var(--pull-x, 0) * 18px),
+      calc(var(--pull-y, 0) * 18px),
+      0
+    )
+    scale(1.035);
+
+  border-color: rgba(0,113,227,.22);
+  box-shadow: 0 10px 28px rgba(0,113,227,.1);
 }
 
 /* Tile inner */
