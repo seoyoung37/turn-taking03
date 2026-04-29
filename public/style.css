@@ -1122,17 +1122,17 @@ nav {
    3 = leaning forward
 */
 .cue-dot:nth-child(1).active {
-  background: #0071e3;
+  background: #d1d1d6;
   transform: scale(1.35);
 }
 
 .cue-dot:nth-child(2).active {
-  background: #34c759;
+  background: #a8beee;
   transform: scale(1.35);
 }
 
 .cue-dot:nth-child(3).active {
-  background: #ff9500;
+  background: #1d1d1f;
   transform: scale(1.35);
 }
 
