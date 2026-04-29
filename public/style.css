@@ -390,7 +390,35 @@ nav {
   transition:background .3s,transform .3s;
 }
 .cue-dot.active{background:var(--blue);transform:scale(1.4);}
-.tile.speaker .cue-dots,.circle-mode .cue-dots { display:none; }
+
+.circle-mode .cue-dots {
+  display: none;
+}
+
+/* speaker여도 local debug dots는 계속 보이게 */
+.tile.speaker .cue-dots {
+  display: flex;
+}
+
+/* dot order:
+   1 = lip parting
+   2 = gazing speaker
+   3 = leaning forward
+*/
+.cue-dot:nth-child(1).active {
+  background: #0071e3;
+  transform: scale(1.55);
+}
+
+.cue-dot:nth-child(2).active {
+  background: #34c759;
+  transform: scale(1.55);
+}
+
+.cue-dot:nth-child(3).active {
+  background: #ff9500;
+  transform: scale(1.55);
+}
 
 /* ── CIRCLE MODE TILES ── */
 .circle-mode .tile {

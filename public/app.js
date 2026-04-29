@@ -921,34 +921,43 @@ function startLocalAudioAnalysis() {
 // ── MEDIAPIPE FACE DETECTION ──────────────────────────
 async function initMediaPipe() {
   try {
-    const { FaceLandmarker, FilesetResolver } = await import(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.js"
+    const visionModule = await import(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/+esm"
     );
+
+    const { FaceLandmarker, FilesetResolver } = visionModule;
 
     const filesetResolver = await FilesetResolver.forVisionTasks(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"
     );
 
-    faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
-      baseOptions: {
-        modelAssetPath:
-          "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
-        delegate: "GPU",
-      },
-      outputFaceBlendshapes: true,
-      runningMode: "VIDEO",
-      numFaces: 1,
-    });
+    async function createLandmarker(delegate) {
+      return FaceLandmarker.createFromOptions(filesetResolver, {
+        baseOptions: {
+          modelAssetPath:
+            "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task",
+          delegate,
+        },
+        outputFaceBlendshapes: true,
+        runningMode: "VIDEO",
+        numFaces: 1,
+      });
+    }
+
+    try {
+      faceLandmarker = await createLandmarker("GPU");
+      console.log("[InBetween] MediaPipe ready with GPU.");
+    } catch (gpuError) {
+      console.warn("[InBetween] GPU MediaPipe failed. Retrying with CPU.", gpuError);
+      faceLandmarker = await createLandmarker("CPU");
+      console.log("[InBetween] MediaPipe ready with CPU.");
+    }
 
     mpRunning = true;
     runFaceDetection();
-
-    console.log("[InBetween] MediaPipe face landmarker ready.");
   } catch (e) {
-    console.warn(
-      "[InBetween] MediaPipe unavailable, skipping pre-speech cues.",
-      e
-    );
+    console.error("[InBetween] MediaPipe failed completely:", e);
+    showToast("Face tracking failed. Check console.", 4000);
   }
 }
 
@@ -988,6 +997,17 @@ function runFaceDetection() {
     const leaning = detectLeaning(lm);
     const gazing = detectGazing(lm);
 
+    if (Math.random() < 0.02) {
+      console.log("[cue raw]", {
+        lipOpen,
+        gazing,
+        leaning,
+        currentSpeaker,
+        heldSpeaker,
+        localIdentity,
+      });
+    }
+
     updateCueState(lipOpen, leaning, gazing, data);
   } else {
     updateCueState(false, false, false, data);
@@ -1004,17 +1024,25 @@ function detectLipOpen(landmarks, blendshapes) {
 
   if (!upper || !lower) return false;
 
-  let normalizedGap = Math.abs(lower.y - upper.y);
+  const rawGap = Math.abs(lower.y - upper.y);
+
+  let normalizedGap = rawGap;
 
   if (forehead && chin) {
     const faceHeight = Math.abs(chin.y - forehead.y) || 1;
-    normalizedGap = Math.abs(lower.y - upper.y) / faceHeight;
+    normalizedGap = rawGap / faceHeight;
   }
 
   const jawOpen = blendshapes.find((b) => b.categoryName === "jawOpen");
   const jawScore = jawOpen ? jawOpen.score : 0;
 
-  return normalizedGap > LIP_THRESHOLD || jawScore > 0.12;
+  /*
+    디버깅용:
+    console에서 lip 값이 변하는지 확인 가능.
+  */
+  // console.log("lip", { normalizedGap, jawScore });
+
+  return normalizedGap > 0.018 || jawScore > 0.08;
 }
 
 function detectLeaning(landmarks) {
@@ -1030,9 +1058,21 @@ function detectLeaning(landmarks) {
     return false;
   }
 
-  baselineFaceScale = baselineFaceScale * 0.995 + faceWidth * 0.005;
+  const ratio = faceWidth / baselineFaceScale;
 
-  return faceWidth / baselineFaceScale > LEAN_THRESHOLD;
+  /*
+    사용자가 뒤로 물러난 경우에는 baseline을 빨리 업데이트하고,
+    앞으로 온 경우에는 너무 빨리 따라가지 않게 함.
+  */
+  if (ratio < 1.02) {
+    baselineFaceScale = baselineFaceScale * 0.98 + faceWidth * 0.02;
+  } else {
+    baselineFaceScale = baselineFaceScale * 0.998 + faceWidth * 0.002;
+  }
+
+  // console.log("lean", { ratio, baselineFaceScale, faceWidth });
+
+  return ratio > 1.035;
 }
 
 function detectGazing(landmarks) {
@@ -1072,60 +1112,79 @@ function detectGazing(landmarks) {
   const yaw = nose.x - eyeCenterX;
   const pitch = (nose.y - faceCenterY) / faceHeight;
 
-  const speakerIsMostlyHorizontal = Math.abs(dx) > Math.abs(dy);
-
-  if (speakerIsMostlyHorizontal) {
-    if (dx > 0) return yaw > GAZE_THRESHOLD * 0.45;
-    return yaw < -GAZE_THRESHOLD * 0.45;
-  }
+  const horizontal = Math.abs(dx) >= Math.abs(dy);
 
   /*
-    위 / 아래 speaker는 웹캠으로 정확히 판별하기 어려워서
-    prototype에서는 pitch를 관대하게 봄.
+    local video는 mirror 되어 있어서 yaw 방향이 반대로 느껴질 수 있음.
+    그래서 아주 관대하게 판단.
   */
-  if (dy < 0) return pitch < 0.08;
-  return pitch > -0.08;
+  if (horizontal) {
+    if (dx > 0) return yaw > 0.006;
+    return yaw < -0.006;
+  }
+
+  if (dy < 0) return pitch < 0.12;
+  return pitch > -0.12;
 }
 
 function updateCueState(lipOpen, leaning, gazing, data) {
   const cueSpeaker = getCueSpeakerId();
 
   /*
-    내가 speaker이면 cue 없음.
+    중요:
+    dot은 "raw detection"이므로 항상 보여줌.
+    그래서 내가 speaker여도 lip / gaze / lean 인식 여부를 확인할 수 있음.
   */
-  if (cueSpeaker === localIdentity || currentSpeaker === localIdentity) {
-    CUE.lip = false;
-    CUE.lean = false;
-    CUE.gaze = false;
-
-    applyLocalCues(false, false, false, data);
-    publishCueState(false, false, false, null);
-    return;
-  }
+  updateCueDots(data, lipOpen, gazing, leaning);
 
   CUE.lip = lipOpen;
   CUE.lean = leaning;
   CUE.gaze = gazing;
 
+  /*
+    내가 현재 speaker이면 pre-speech visual effect는 적용하지 않음.
+    하지만 dot은 위에서 이미 업데이트됨.
+  */
+  if (currentSpeaker === localIdentity) {
+    applyCueVisual(data, {
+      lip: false,
+      lean: false,
+      gaze: false,
+      speakerId: cueSpeaker,
+    });
+
+    publishCueState(false, false, false, cueSpeaker);
+    return;
+  }
+
   applyLocalCues(lipOpen, leaning, gazing, data);
   publishCueState(lipOpen, leaning, gazing, cueSpeaker);
 }
 
+function updateCueDots(data, lip, gaze, lean) {
+  if (!data || !data.cueDots) return;
+
+  const dots = data.cueDots.querySelectorAll(".cue-dot");
+
+  // 1 = lip parting
+  // 2 = gazing speaker
+  // 3 = leaning forward
+  dots[0]?.classList.toggle("active", Boolean(lip));
+  dots[1]?.classList.toggle("active", Boolean(gaze));
+  dots[2]?.classList.toggle("active", Boolean(lean));
+}
+
 function applyLocalCues(lip, lean, gaze, data) {
+  /*
+    dot은 updateCueState()에서 이미 raw 값으로 업데이트함.
+    여기서는 visual effect만 처리.
+  */
   applyCueVisual(data, {
     lip,
     lean,
     gaze,
     speakerId: getCueSpeakerId(),
   });
-
-  if (data.cueDots) {
-    const dots = data.cueDots.querySelectorAll(".cue-dot");
-
-    dots[0]?.classList.toggle("active", lip);
-    dots[1]?.classList.toggle("active", gaze);
-    dots[2]?.classList.toggle("active", lean);
-  }
 }
 
 function applyRemoteCues(identity, message) {
