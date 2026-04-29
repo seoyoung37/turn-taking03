@@ -7,10 +7,6 @@ const SILENCE_MS = 5000;
 const SPEAKING_RMS = 0.018;
 const SPEAKING_HOLD_MS = 800;
 
-/*
-  Detection thresholds.
-  기존 값이 너무 빡세서 lip / lean / gaze가 잘 안 잡힐 수 있었음.
-*/
 const LIP_THRESHOLD = 0.028;
 const LEAN_THRESHOLD = 1.06;
 const GAZE_THRESHOLD = 0.045;
@@ -56,6 +52,7 @@ const tilesContainer = () => $("tiles-container");
 
 function showToast(msg, ms = 2000) {
   let t = document.querySelector(".toast");
+
   if (!t) {
     t = document.createElement("div");
     t.className = "toast";
@@ -86,7 +83,6 @@ function getCueSpeakerId() {
   return currentSpeaker || heldSpeaker;
 }
 
-// FIX: Show a persistent prompt when browser blocks audio autoplay.
 function showAudioPrompt() {
   let prompt = document.getElementById("audio-prompt");
   if (prompt) return;
@@ -144,6 +140,7 @@ function openJoinModal() {
     const nameInput = $("input-name");
 
     if (saved) nameInput.value = saved;
+
     nameInput.focus();
     nameInput.select();
   }, 80);
@@ -180,11 +177,6 @@ async function handleJoin() {
   try {
     localStorage.setItem("ib-username", name);
 
-    /*
-      중요:
-      LiveKit identity는 반드시 참가자마다 unique해야 함.
-      display name은 name으로 유지하고, identity만 unique하게 만듦.
-    */
     const uniqueIdentity = makeUniqueIdentity(name);
 
     localIdentity = uniqueIdentity;
@@ -237,6 +229,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   ["input-name", "input-room"].forEach((id) => {
     const el = $(id);
+
     if (el) {
       el.addEventListener("keydown", (e) => {
         if (e.key === "Enter") handleJoin();
@@ -262,10 +255,6 @@ async function connectToRoom(wsUrl, token) {
   livekitRoom.on(RoomEvent.TrackMuted, onTrackMuted);
   livekitRoom.on(RoomEvent.TrackUnmuted, onTrackUnmuted);
   livekitRoom.on(RoomEvent.Disconnected, onDisconnected);
-
-  /*
-    다른 사용자의 lip / lean / gaze cue를 받는 부분.
-  */
   livekitRoom.on(RoomEvent.DataReceived, onDataReceived);
 
   livekitRoom.on(RoomEvent.AudioPlaybackStatusChanged, () => {
@@ -338,16 +327,12 @@ function onTrackSubscribed(track, pub, participant) {
 
   if (track.kind === Track.Kind.Video) {
     const el = track.attach();
-    el.style.cssText =
-      "width:100%;height:100%;object-fit:cover;position:absolute;inset:0;";
     el.className = "tile-video";
 
-    hideCamOff(data);
+    attachVideoElementToTile(data, el, false);
+  }
 
-    data.videoWrap.innerHTML = "";
-    data.videoWrap.appendChild(el);
-    data.videoEl = el;
-  } else if (track.kind === Track.Kind.Audio) {
+  if (track.kind === Track.Kind.Audio) {
     const el = track.attach();
     el.style.display = "none";
     el.dataset.identity = participant.identity;
@@ -367,6 +352,7 @@ function onTrackUnsubscribed(track, pub, participant) {
 
   if (track.kind === Track.Kind.Audio) {
     track.detach().forEach((el) => el.remove());
+
     document
       .querySelectorAll(`audio[data-identity="${participant.identity}"]`)
       .forEach((el) => el.remove());
@@ -434,12 +420,6 @@ function onActiveSpeakersChanged(speakers) {
       }
     });
   } else {
-    /*
-      중요:
-      speaker가 사라졌을 때 currentSpeaker를 null로 만들고,
-      이전 speaker는 heldSpeaker로 남겨둠.
-      그래야 lip + gaze가 직전 speaker 방향을 기준으로 작동 가능.
-    */
     if (currentSpeaker) {
       setSpeaker(null);
     }
@@ -491,8 +471,14 @@ function createTile(identity, displayName, isLocal) {
   tile.className = "tile";
   tile.dataset.identity = identity;
 
+  /*
+    기본 비율.
+    실제 video metadata가 로드되면 --tile-ar가 실제 비율로 업데이트됨.
+  */
+  tile.style.setProperty("--tile-ar", "16 / 9");
+
   const vWrap = document.createElement("div");
-  vWrap.style.cssText = "position:absolute;inset:0;";
+  vWrap.className = "video-wrap";
   tile.appendChild(vWrap);
 
   const camOff = document.createElement("div");
@@ -534,9 +520,9 @@ function createTile(identity, displayName, isLocal) {
     const dots = document.createElement("div");
     dots.className = "cue-dots";
     dots.innerHTML = `
-      <span class="cue-dot" title="Lip parting"></span>
-      <span class="cue-dot" title="Gazing at speaker"></span>
-      <span class="cue-dot" title="Leaning forward"></span>
+      <span class="cue-dot lip" title="Lip parting"></span>
+      <span class="cue-dot gaze" title="Gazing at speaker"></span>
+      <span class="cue-dot lean" title="Leaning forward"></span>
     `;
     tile.appendChild(dots);
     cueDots = dots;
@@ -570,6 +556,53 @@ function removeTile(identity) {
   pMap.delete(identity);
 }
 
+function attachVideoElementToTile(data, videoEl, mirror) {
+  if (!data || !videoEl) return;
+
+  videoEl.autoplay = true;
+  videoEl.playsInline = true;
+  videoEl.classList.add("tile-video");
+
+  if (mirror) {
+    videoEl.classList.add("mirrored");
+    videoEl.muted = true;
+  }
+
+  data.videoWrap.innerHTML = "";
+  data.videoWrap.appendChild(videoEl);
+  data.videoEl = videoEl;
+
+  hideCamOff(data);
+  lockInitialAspectRatio(data.tile, videoEl);
+}
+
+function lockInitialAspectRatio(tile, videoEl) {
+  if (!tile || !videoEl) return;
+
+  const applyAspect = () => {
+    if (!videoEl.videoWidth || !videoEl.videoHeight) return;
+
+    /*
+      이미 한 번 aspect를 잡았다면 계속 유지.
+      화면 효과가 나타나도 tile 비율이 다시 바뀌지 않음.
+    */
+    if (tile.dataset.aspectLocked === "true") return;
+
+    tile.style.setProperty(
+      "--tile-ar",
+      `${videoEl.videoWidth} / ${videoEl.videoHeight}`
+    );
+
+    tile.dataset.aspectLocked = "true";
+  };
+
+  if (videoEl.readyState >= 1) {
+    applyAspect();
+  }
+
+  videoEl.addEventListener("loadedmetadata", applyAspect, { once: true });
+}
+
 function attachLocalVideo() {
   const lp = livekitRoom.localParticipant;
   const { Track } = LivekitClient;
@@ -581,16 +614,7 @@ function attachLocalVideo() {
     if (!data) return;
 
     const el = pub.track.attach();
-    el.muted = true;
-    el.style.cssText =
-      "width:100%;height:100%;object-fit:cover;position:absolute;inset:0;transform:scaleX(-1);";
-    el.className = "tile-video mirrored";
-
-    data.videoWrap.innerHTML = "";
-    data.videoWrap.appendChild(el);
-    data.videoEl = el;
-
-    hideCamOff(data);
+    attachVideoElementToTile(data, el, true);
   }
 
   lp.trackPublications.forEach((pub) => doAttach(pub));
@@ -673,7 +697,9 @@ function setSpeaker(identity) {
         "held-speaker",
         "mouth-open",
         "leaning",
-        "gaze-pull"
+        "gaze-pull",
+        "pre-lean",
+        "pre-gaze"
       );
       data.speakerRing.style.display = "block";
     }
@@ -738,7 +764,9 @@ function enterCircleMode() {
       "held-speaker",
       "mouth-open",
       "leaning",
-      "gaze-pull"
+      "gaze-pull",
+      "pre-lean",
+      "pre-gaze"
     );
   });
 
@@ -772,7 +800,7 @@ function exitCircleMode() {
   tc.classList.remove("circle-mode");
 
   pMap.forEach(({ tile }) => {
-    tile.style.cssText = "";
+    clearCircleInlineLayout(tile);
     tile.classList.remove("speaker-circle");
   });
 
@@ -780,6 +808,14 @@ function exitCircleMode() {
 
   $("mode-grid").classList.add("sel");
   $("mode-circle-btn").classList.remove("sel");
+}
+
+function clearCircleInlineLayout(tile) {
+  tile.style.removeProperty("position");
+  tile.style.removeProperty("left");
+  tile.style.removeProperty("top");
+  tile.style.removeProperty("width");
+  tile.style.removeProperty("height");
 }
 
 function layoutCircleTiles() {
@@ -923,18 +959,16 @@ async function initMediaPipe() {
   try {
     let visionModule = null;
 
-    /*
-      0.10.22 URL이 지금 404라서 실패하고 있음.
-      안정적으로 작동하는 0.10.3 버전으로 먼저 시도하고,
-      혹시 jsDelivr가 막히면 esm.sh로 fallback.
-    */
     try {
       visionModule = await import(
         "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm"
       );
       console.log("[InBetween] MediaPipe module loaded from jsDelivr.");
     } catch (cdnError) {
-      console.warn("[InBetween] jsDelivr MediaPipe import failed. Retrying with esm.sh.", cdnError);
+      console.warn(
+        "[InBetween] jsDelivr MediaPipe import failed. Retrying with esm.sh.",
+        cdnError
+      );
 
       visionModule = await import(
         "https://esm.sh/@mediapipe/tasks-vision@0.10.3"
@@ -965,7 +999,10 @@ async function initMediaPipe() {
       faceLandmarker = await createLandmarker("GPU");
       console.log("[InBetween] FaceLandmarker ready with GPU.");
     } catch (gpuError) {
-      console.warn("[InBetween] GPU failed. Retrying FaceLandmarker with CPU.", gpuError);
+      console.warn(
+        "[InBetween] GPU failed. Retrying FaceLandmarker with CPU.",
+        gpuError
+      );
       faceLandmarker = await createLandmarker("CPU");
       console.log("[InBetween] FaceLandmarker ready with CPU.");
     }
@@ -1055,12 +1092,6 @@ function detectLipOpen(landmarks, blendshapes) {
   const jawOpen = blendshapes.find((b) => b.categoryName === "jawOpen");
   const jawScore = jawOpen ? jawOpen.score : 0;
 
-  /*
-    디버깅용:
-    console에서 lip 값이 변하는지 확인 가능.
-  */
-  // console.log("lip", { normalizedGap, jawScore });
-
   return normalizedGap > 0.018 || jawScore > 0.08;
 }
 
@@ -1079,17 +1110,11 @@ function detectLeaning(landmarks) {
 
   const ratio = faceWidth / baselineFaceScale;
 
-  /*
-    사용자가 뒤로 물러난 경우에는 baseline을 빨리 업데이트하고,
-    앞으로 온 경우에는 너무 빨리 따라가지 않게 함.
-  */
   if (ratio < 1.02) {
     baselineFaceScale = baselineFaceScale * 0.98 + faceWidth * 0.02;
   } else {
     baselineFaceScale = baselineFaceScale * 0.998 + faceWidth * 0.002;
   }
-
-  // console.log("lean", { ratio, baselineFaceScale, faceWidth });
 
   return ratio > 1.035;
 }
@@ -1133,10 +1158,6 @@ function detectGazing(landmarks) {
 
   const horizontal = Math.abs(dx) >= Math.abs(dy);
 
-  /*
-    local video는 mirror 되어 있어서 yaw 방향이 반대로 느껴질 수 있음.
-    그래서 아주 관대하게 판단.
-  */
   if (horizontal) {
     if (dx > 0) return yaw > 0.006;
     return yaw < -0.006;
@@ -1149,21 +1170,12 @@ function detectGazing(landmarks) {
 function updateCueState(lipOpen, leaning, gazing, data) {
   const cueSpeaker = getCueSpeakerId();
 
-  /*
-    중요:
-    dot은 "raw detection"이므로 항상 보여줌.
-    그래서 내가 speaker여도 lip / gaze / lean 인식 여부를 확인할 수 있음.
-  */
   updateCueDots(data, lipOpen, gazing, leaning);
 
   CUE.lip = lipOpen;
   CUE.lean = leaning;
   CUE.gaze = gazing;
 
-  /*
-    내가 현재 speaker이면 pre-speech visual effect는 적용하지 않음.
-    하지만 dot은 위에서 이미 업데이트됨.
-  */
   if (currentSpeaker === localIdentity) {
     applyCueVisual(data, {
       lip: false,
@@ -1185,19 +1197,12 @@ function updateCueDots(data, lip, gaze, lean) {
 
   const dots = data.cueDots.querySelectorAll(".cue-dot");
 
-  // 1 = lip parting
-  // 2 = gazing speaker
-  // 3 = leaning forward
   dots[0]?.classList.toggle("active", Boolean(lip));
   dots[1]?.classList.toggle("active", Boolean(gaze));
   dots[2]?.classList.toggle("active", Boolean(lean));
 }
 
 function applyLocalCues(lip, lean, gaze, data) {
-  /*
-    dot은 updateCueState()에서 이미 raw 값으로 업데이트함.
-    여기서는 visual effect만 처리.
-  */
   applyCueVisual(data, {
     lip,
     lean,
@@ -1223,41 +1228,47 @@ function applyCueVisual(data, cue) {
   if (!tile) return;
 
   const speakerId = cue.speakerId || getCueSpeakerId();
-  const wasLeaning = tile.classList.contains("leaning");
 
-  tile.classList.remove("mouth-open", "leaning", "gaze-pull");
+  tile.classList.remove(
+    "mouth-open",
+    "leaning",
+    "gaze-pull",
+    "pre-lean",
+    "pre-gaze"
+  );
+
   tile.style.removeProperty("--pull-x");
   tile.style.removeProperty("--pull-y");
+  tile.style.removeProperty("--cue-pull-x");
+  tile.style.removeProperty("--cue-pull-y");
+  tile.style.removeProperty("transform-origin");
 
-  /*
-    speaker 자신에게는 pre-speech cue 적용하지 않음.
-  */
   if (data.tile.dataset.identity === speakerId) {
     return;
   }
 
+  if (cue.lip) {
+    tile.classList.add("mouth-open");
+  }
+
   /*
     B. Open mouth + Leaning Forward
-    강한 turn-taking 신호.
-    아래쪽, 즉 입이 있는 부분이 앞으로 들리는 느낌.
+    더 강한 turn-taking cue.
+    크기를 키우지 않고 하단이 먼저 살짝 들리는 느낌만 줌.
   */
   if (cue.lip && cue.lean) {
-    tile.style.transformOrigin = "top center";
-
     requestAnimationFrame(() => {
-      tile.classList.add("leaning");
+      tile.classList.add("pre-lean");
     });
 
     return;
   }
 
   /*
-    A. Open mouth + Gazing at Speaker
-    speaker가 있는 방향으로 약하게 부풀거나 기울어지는 신호.
+    A. Open mouth + Gazing Speaker
+    speaker 방향으로 살짝 당겨지고 부풀어 오르는 cue.
   */
   if (cue.lip && cue.gaze && speakerId) {
-    if (wasLeaning) tile.style.transformOrigin = "";
-
     const speakerData = pMap.get(speakerId);
 
     if (speakerData) {
@@ -1267,31 +1278,18 @@ function applyCueVisual(data, cue) {
       const dx = sr.left + sr.width / 2 - (lr.left + lr.width / 2);
       const dy = sr.top + sr.height / 2 - (lr.top + lr.height / 2);
 
-      const maxD = Math.max(Math.abs(dx), Math.abs(dy), 1);
+      const len = Math.hypot(dx, dy) || 1;
 
-      const nx = Math.max(-1, Math.min(1, dx / maxD));
-      const ny = Math.max(-1, Math.min(1, dy / maxD));
+      const nx = Math.max(-1, Math.min(1, dx / len));
+      const ny = Math.max(-1, Math.min(1, dy / len));
 
-      tile.style.setProperty("--pull-x", nx.toFixed(2));
-      tile.style.setProperty("--pull-y", ny.toFixed(2));
+      tile.style.setProperty("--cue-pull-x", nx.toFixed(4));
+      tile.style.setProperty("--cue-pull-y", ny.toFixed(4));
 
       requestAnimationFrame(() => {
-        tile.classList.add("gaze-pull");
+        tile.classList.add("pre-gaze");
       });
     }
-
-    return;
-  }
-
-  /*
-    lip alone = 시각 효과 없음.
-  */
-  if (wasLeaning) {
-    setTimeout(() => {
-      if (!tile.classList.contains("leaning")) {
-        tile.style.transformOrigin = "";
-      }
-    }, 780);
   }
 }
 
@@ -1299,7 +1297,6 @@ function publishCueState(lip, lean, gaze, speakerId) {
   if (!livekitRoom || !livekitRoom.localParticipant) return;
 
   const now = Date.now();
-
   const signature = `${lip}-${lean}-${gaze}-${speakerId || ""}`;
 
   if (signature === lastCueSignature && now - lastCueSentAt < 220) {
@@ -1396,6 +1393,7 @@ async function toggleCamera() {
   }
 
   const localData = pMap.get(localIdentity);
+
   if (localData) {
     camEnabled ? hideCamOff(localData) : showCamOff(localData);
   }
