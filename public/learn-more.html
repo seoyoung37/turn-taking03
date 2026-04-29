@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How it works — InBetween</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root { --blue:#0071e3;--black:#1d1d1f;--g1:#f5f5f7;--g2:#e8e8ed;--g3:#86868b;--border:rgba(0,0,0,0.08); }
+html { scroll-behavior: smooth; }
+body { font-family:'Inter',-apple-system,sans-serif;-webkit-font-smoothing:antialiased;background:#fff;color:var(--black);overflow-x:hidden; }
+
+nav { position:fixed;top:0;left:0;right:0;z-index:50;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:rgba(255,255,255,.88);backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--border); }
+.logo { font-size:1rem;font-weight:600;letter-spacing:-.02em;color:var(--black);text-decoration:none; }
+.nav-r { display:flex;align-items:center;gap:8px; }
+.nav-back { font-size:.8rem;color:var(--g3);text-decoration:none;padding:6px 12px;border-radius:8px;transition:background .15s; }
+.nav-back:hover { background:var(--g1);color:var(--black); }
+.btn-nav { background:var(--blue);color:#fff;border-radius:999px;border:none;cursor:pointer;padding:7px 18px;font-family:inherit;font-size:.8rem;font-weight:500;letter-spacing:-.01em;text-decoration:none;transition:background .2s; }
+.btn-nav:hover { background:#0077ed; }
+
+.container { max-width:900px;margin:0 auto;padding:0 28px; }
+section { padding:80px 0; }
+section+section { border-top:.5px solid var(--border); }
+.label { font-size:.72rem;font-weight:500;color:var(--blue);letter-spacing:.04em;text-transform:uppercase;margin-bottom:12px;display:block; }
+h2 { font-size:clamp(2rem,3.5vw,2.8rem);font-weight:600;line-height:1.1;letter-spacing:-.04em;margin-bottom:16px; }
+.lead { font-size:1.05rem;color:var(--g3);line-height:1.7;max-width:560px; }
+
+/* HERO */
+.hero { padding:120px 0 80px;text-align:center;display:flex;flex-direction:column;align-items:center; }
+.hero h1 { font-size:clamp(2.8rem,5vw,4rem);font-weight:600;line-height:1.07;letter-spacing:-.04em;margin-bottom:16px; }
+.hero p { font-size:1.05rem;color:var(--g3);line-height:1.7;max-width:480px;margin-bottom:48px; }
+
+/* Tile state strip — 4 states: flat, gaze, lean, speaker */
+.strip-wrap { perspective:900px;perspective-origin:50% 60%;display:flex;align-items:flex-end;justify-content:center;gap:16px;height:140px; }
+.st { width:96px;height:116px;border-radius:12px;border:1.5px solid var(--border);background:var(--g1);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;transform-origin:bottom center;position:relative; }
+.st .face { width:32px;height:32px;border-radius:50%;background:var(--g2); }
+.st .lbl { position:absolute;bottom:8px;left:50%;transform:translateX(-50%);font-size:.52rem;font-weight:500;color:var(--g3);background:rgba(255,255,255,.9);border-radius:999px;padding:2px 9px;white-space:nowrap; }
+
+.st-flat  { transform:perspective(650px) rotateX(55deg);background:#f0f0f5; }
+.st-gaze  { transform:perspective(650px) rotateX(30deg) rotateY(14deg);border-color:rgba(0,113,227,.2);background:#f5f8ff; }
+.st-gaze  .face { background:#7db0e8; }
+.st-lean  { transform-origin:top center;transform:perspective(650px) rotateX(-18deg);background:#fff;border-color:rgba(0,0,0,.15);box-shadow:0 14px 36px rgba(0,0,0,.1); }
+.st-lean  .face { background:#444; }
+.st-speak { transform:perspective(650px) rotateX(0deg);background:#fff;border:2px solid var(--blue);box-shadow:0 14px 40px rgba(0,113,227,.14);z-index:5; }
+.st-speak .face { background:var(--blue); }
+.st-speak .lbl { background:var(--blue);color:#fff; }
+
+.strip-lbls { display:flex;justify-content:center;gap:16px;margin-top:14px; }
+.s-lbl { width:96px;text-align:center;font-size:.62rem;color:var(--g3); }
+.s-lbl.hi { color:var(--blue);font-weight:500; }
+
+/* TWO SIGNALS SECTION */
+.signals-split { display:grid;grid-template-columns:1fr 1fr;gap:2px;background:var(--border);border:.5px solid var(--border);border-radius:20px;overflow:hidden;margin-top:48px; }
+.sig-side { background:#fff;padding:40px 36px;display:flex;flex-direction:column; }
+.sig-side.b { background:var(--g1); }
+
+.sig-tag { display:inline-flex;align-items:center;gap:6px;background:var(--g1);border-radius:999px;padding:5px 14px;font-size:.72rem;font-weight:500;color:var(--g3);margin-bottom:14px;width:fit-content; }
+.sig-side.b .sig-tag { background:#fff; }
+.sig-tag-dot { width:6px;height:6px;border-radius:50%; }
+
+.strength { display:flex;gap:4px;margin-bottom:16px; }
+.s-pip { width:7px;height:7px;border-radius:50%;background:var(--g2); }
+.s-pip.on { background:var(--blue); }
+
+.sig-title { font-size:1.15rem;font-weight:600;letter-spacing:-.03em;margin-bottom:10px; }
+.sig-desc { font-size:.88rem;color:var(--g3);line-height:1.75;flex:1; }
+
+/* GAZE DEMO */
+.gaze-demo { margin-top:28px;display:flex;align-items:flex-end;gap:8px;perspective:280px;perspective-origin:50% 60%;height:72px; }
+.gd { width:50px;height:62px;border-radius:8px;background:var(--g1);border:1px solid var(--g2);transform-origin:bottom center;display:flex;align-items:center;justify-content:center; }
+.gdf { width:18px;height:18px;border-radius:50%;background:var(--g2); }
+.gd.flat-g  { transform:perspective(220px) rotateX(52deg); }
+.gd.gazer   { transform:perspective(220px) rotateX(28deg) rotateY(18deg);border-color:rgba(0,113,227,.3);background:#f5f8ff; }
+.gd.gazer .gdf { background:#7db0e8; }
+.gd.spk     { transform:perspective(220px) rotateX(0deg);background:#fff;border:1.5px solid var(--blue);box-shadow:0 4px 14px rgba(0,113,227,.1); }
+.gd.spk .gdf { background:var(--blue); }
+.gaze-arrow { color:rgba(0,113,227,.4);font-size:1rem;align-self:center;flex-shrink:0; }
+.demo-note { font-size:.6rem;color:var(--g3);margin-top:8px;font-style:italic; }
+
+/* LEAN DEMO */
+.lean-demo { margin-top:28px;display:flex;align-items:center;gap:12px;perspective:280px;perspective-origin:50% 20%;height:80px; }
+.ld { width:60px;height:72px;border-radius:8px;background:var(--g1);border:1px solid var(--g2);display:flex;align-items:center;justify-content:center; }
+.ldf { width:20px;height:20px;border-radius:50%;background:var(--g2); }
+.ld.flat-l  { transform:perspective(220px) rotateX(52deg); }
+.ld.leaner  { transform-origin:top center;transform:perspective(220px) rotateX(-22deg);background:#fff;border-color:rgba(0,0,0,.18);box-shadow:0 12px 28px rgba(0,0,0,.1); }
+.ld.leaner .ldf { background:#444; }
+.lean-arrow { color:var(--g3);font-size:1rem;flex-shrink:0; }
+
+/* Direction grid for gaze */
+.dir-grid { display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px; }
+.dir-item { background:#fff;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:8px;border:.5px solid var(--border); }
+.dir-arrow { font-size:.9rem;color:var(--blue); }
+.dir-text { font-size:.72rem;color:var(--g3);line-height:1.4; }
+
+/* MUTE */
+.mute-grid { display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center; }
+.mute-card { background:var(--g1);border-radius:16px;padding:28px;display:flex;flex-direction:column;gap:10px; }
+.mute-row { display:flex;align-items:center;gap:12px;background:#fff;border-radius:10px;padding:14px 16px;border:.5px solid var(--border); }
+.mute-icon { width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+.mute-icon.on { background:var(--black); }
+.mute-icon.off { background:var(--g2); }
+.mute-row h4 { font-size:.82rem;font-weight:600;margin-bottom:2px; }
+.mute-row p  { font-size:.75rem;color:var(--g3); }
+.mute-divider { text-align:center;font-size:.68rem;color:var(--g3);display:flex;align-items:center;gap:8px;justify-content:center; }
+.mute-divider::before,.mute-divider::after { content:'';flex:1;height:.5px;background:var(--g2); }
+
+/* CIRCLE */
+.circle-section { background:var(--black);color:#fff; }
+.circle-section .label { color:rgba(255,255,255,.35); }
+.circle-section h2 { color:#fff; }
+.circle-section .lead { color:rgba(255,255,255,.45); }
+.circle-layout { display:grid;grid-template-columns:260px 1fr;gap:56px;align-items:center;margin-top:48px; }
+.orbit-wrap { position:relative;width:260px;height:260px;flex-shrink:0; }
+.orbit-ring { position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:50%;border:1px solid rgba(255,255,255,.1); }
+.or-out { width:240px;height:240px; } .or-inn { width:144px;height:144px; }
+.orbit-svg { position:absolute;top:0;left:0; }
+.orb-g  { animation:spin 18s linear infinite; transform-origin:130px 130px; }
+.orb-gr { animation:spin 26s linear infinite reverse; transform-origin:130px 130px; }
+@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+.orbit-center { position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center; }
+.oc-n { font-size:1.8rem;font-weight:600;color:#fff;line-height:1; }
+.oc-s { font-size:.6rem;color:rgba(255,255,255,.3);letter-spacing:.12em;text-transform:uppercase;margin-top:4px; }
+.cpoints { display:flex;flex-direction:column;gap:22px; }
+.cp { display:flex;gap:14px; }
+.cp-dot { width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px; }
+.cp-out { background:rgba(255,255,255,.3); } .cp-in { background:rgba(0,113,227,.7);border:1px solid #0071e3; } .cp-neu { background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2); }
+.cp h4 { font-size:.9rem;font-weight:500;color:#fff;margin-bottom:4px; }
+.cp p  { font-size:.8rem;color:rgba(255,255,255,.4);line-height:1.6; }
+
+/* CTA */
+.cta-sec { text-align:center;padding:100px 0; }
+.cta-sec h2 { font-size:clamp(2rem,3.5vw,2.8rem);font-weight:600;letter-spacing:-.04em;margin-bottom:12px; }
+.cta-sec p  { font-size:1rem;color:var(--g3);margin-bottom:32px; }
+.btn-cta { display:inline-block;background:var(--blue);color:#fff;border-radius:999px;padding:14px 32px;font-family:inherit;font-size:.95rem;font-weight:500;text-decoration:none;letter-spacing:-.01em;transition:background .2s,transform .15s; }
+.btn-cta:hover { background:#0077ed;transform:scale(1.02); }
+
+footer { border-top:.5px solid var(--border);padding:28px;display:flex;align-items:center;justify-content:space-between; }
+.footer-logo { font-size:.9rem;font-weight:600;letter-spacing:-.02em; }
+.footer-copy { font-size:.72rem;color:var(--g3); }
+
+.reveal { opacity:0;transform:translateY(22px);transition:opacity .6s ease,transform .6s ease; }
+.reveal.in { opacity:1;transform:none; }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="logo">InBetween</a>
+  <div class="nav-r">
+    <a href="/" class="nav-back">← Back</a>
+    <a href="/" class="btn-nav">Join Meeting</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="container" style="display:flex;flex-direction:column;align-items:center">
+    <span class="label reveal">How it works</span>
+    <h1 class="reveal">The moment before<br>you speak.</h1>
+    <p class="reveal">Most video calls show you who's talking. InBetween shows what comes just before — the moment someone is about to say something.</p>
+
+    <!-- 4-state strip: flat / gaze / lean / speaker -->
+    <div class="strip-wrap reveal">
+      <div class="st st-flat"><div class="face"></div><div class="lbl">Listening</div></div>
+      <div class="st st-gaze"><div class="face"></div><div class="lbl">Gazing</div></div>
+      <div class="st st-lean"><div class="face"></div><div class="lbl">Leaning</div></div>
+      <div class="st st-speak"><div class="face"></div><div class="lbl">Speaking</div></div>
+    </div>
+    <div class="strip-lbls reveal">
+      <div class="s-lbl">Default</div>
+      <div class="s-lbl">Mouth + gaze</div>
+      <div class="s-lbl hi">Mouth + lean</div>
+      <div class="s-lbl">Active speaker</div>
+    </div>
+  </div>
+</section>
+
+<!-- PROBLEM -->
+<section>
+  <div class="container reveal">
+    <span class="label">The problem</span>
+    <h2>Online calls lose<br>the in-between moments.</h2>
+    <p class="lead">In a physical room you can feel when someone is about to speak — a lean forward, a glance toward the current speaker, a breath. Online, that signal disappears. People talk over each other, silences feel awkward, and quieter voices never find their moment.</p>
+    <p class="lead" style="margin-top:16px">InBetween restores that layer by reading open mouth combined with body signals, and making them visible to everyone in the call.</p>
+  </div>
+</section>
+
+<!-- THE TWO SIGNALS -->
+<section>
+  <div class="container">
+    <span class="label reveal">Pre-speech signals</span>
+    <h2 class="reveal">Open mouth.<br>Two different signals.</h2>
+    <p class="lead reveal">An open mouth on its own does nothing — it's just the prerequisite. What InBetween reads is what the body does <em>at the same time</em> as the mouth opens.</p>
+
+    <div class="signals-split reveal">
+
+      <!-- A: Gazing Speaker -->
+      <div class="sig-side">
+        <div class="sig-tag"><span class="sig-tag-dot" style="background:#a8beee"></span>Open mouth + Gazing at speaker</div>
+        <div class="strength"><div class="s-pip on"></div><div class="s-pip on"></div><div class="s-pip"></div><div class="s-pip"></div></div>
+        <div class="sig-title">Weak signal — directional pull</div>
+        <p class="sig-desc">When you open your mouth AND look toward whoever is currently speaking, your tile subtly inflates in their direction. The edge facing the speaker rises slightly — not a full stand-up, just a lean toward them. It signals "I'm listening, I might step in."</p>
+
+        <div class="gaze-demo">
+          <div class="gd flat-g"><div class="gdf"></div></div>
+          <div class="gd gazer"><div class="gdf"></div></div>
+          <div class="gd flat-g"><div class="gdf"></div></div>
+          <div class="gaze-arrow">→</div>
+          <div class="gd spk"><div class="gdf"></div></div>
+        </div>
+        <p class="demo-note">Gazer's right edge inflates toward the speaker</p>
+
+        <!-- Direction key -->
+        <div class="dir-grid" style="margin-top:20px">
+          <div class="dir-item"><span class="dir-arrow">↑</span><span class="dir-text">Speaker above → top edge rises</span></div>
+          <div class="dir-item"><span class="dir-arrow">↓</span><span class="dir-text">Speaker below → tile stays flat</span></div>
+          <div class="dir-item"><span class="dir-arrow">←</span><span class="dir-text">Speaker left → left edge rises</span></div>
+          <div class="dir-item"><span class="dir-arrow">→</span><span class="dir-text">Speaker right → right edge rises</span></div>
+        </div>
+      </div>
+
+      <!-- B: Leaning Forward -->
+      <div class="sig-side b">
+        <div class="sig-tag"><span class="sig-tag-dot" style="background:#444"></span>Open mouth + Leaning forward</div>
+        <div class="strength"><div class="s-pip on"></div><div class="s-pip on"></div><div class="s-pip on"></div><div class="s-pip on"></div></div>
+        <div class="sig-title">Strong signal — bottom rises first</div>
+        <p class="sig-desc">When you open your mouth AND lean your body toward the camera, InBetween reads this as a strong turn-claiming signal. The bottom of your tile — where your mouth appears — swings toward the viewer first, as if your chin is leading the way in. This means "I'm about to speak."</p>
+
+        <div class="lean-demo">
+          <div class="ld flat-l"><div class="ldf"></div></div>
+          <div class="lean-arrow">→</div>
+          <div class="ld leaner"><div class="ldf"></div></div>
+        </div>
+        <p class="demo-note" style="text-align:center;margin-top:10px">Top stays anchored — bottom (mouth area) swings toward viewer</p>
+
+        <div style="margin-top:20px;background:#fff;border-radius:10px;padding:14px 16px;border:.5px solid var(--border)">
+          <p style="font-size:.78rem;color:var(--g3);line-height:1.6">This is the strongest pre-speech cue. While gazing signals <em>connection</em>, leaning signals <em>intent</em>. The tile's upward motion from the bottom mirrors the physical act of leaning in to speak.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- MUTE GATE -->
+<section>
+  <div class="container reveal">
+    <div class="mute-grid">
+      <div>
+        <span class="label">Microphone state</span>
+        <h2>Mute is<br>the gatekeeper.</h2>
+        <p class="lead">If you're muted, neither signal fires — because you can't actually speak. Only when unmuted does InBetween begin reading mouth + body signals. The system respects your intent and only surfaces cues that are meaningful.</p>
+      </div>
+      <div class="mute-card">
+        <div class="mute-row">
+          <div class="mute-icon on">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="3.5" y="1" width="6" height="7.5" rx="3" stroke="white" stroke-width="1.2"/><path d="M1.5 7c0 2.5 2 4.5 5 4.5s5-2 5-4.5" stroke="white" stroke-width="1.2" stroke-linecap="round"/></svg>
+          </div>
+          <div><h4>Unmuted</h4><p style="font-size:.75rem;color:var(--g3)">Gaze pull and leaning signals are active</p></div>
+        </div>
+        <div class="mute-divider">signals blocked below</div>
+        <div class="mute-row" style="opacity:.45">
+          <div class="mute-icon off">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="3.5" y="1" width="6" height="7.5" rx="3" stroke="#86868b" stroke-width="1.2"/><line x1="1.5" y1="1.5" x2="11.5" y2="11.5" stroke="#86868b" stroke-width="1.3" stroke-linecap="round"/></svg>
+          </div>
+          <div><h4>Muted</h4><p style="font-size:.75rem;color:var(--g3)">Tile stays flat regardless of body movement</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CIRCLE MODE -->
+<section class="circle-section">
+  <div class="container">
+    <span class="label reveal">No speaker mode</span>
+    <h2 class="reveal">Silence becomes<br>an opening.</h2>
+    <p class="lead reveal">After 5 seconds of no one speaking, InBetween shifts modes. All tiles go upright and rearrange into a slowly rotating circle — split by how much each person has spoken.</p>
+    <div class="circle-layout reveal">
+      <div class="orbit-wrap">
+        <div class="orbit-ring or-out"></div>
+        <div class="orbit-ring or-inn"></div>
+        <svg class="orbit-svg" width="260" height="260" viewBox="0 0 260 260">
+          <g class="orb-g">
+            <circle cx="130" cy="16"  r="17" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.15)" stroke-width="1"/><text x="130" y="20"  text-anchor="middle" font-size="7" fill="rgba(255,255,255,.4)" font-family="Inter">A.B</text>
+            <circle cx="228" cy="65"  r="17" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.15)" stroke-width="1"/><text x="228" y="69"  text-anchor="middle" font-size="7" fill="rgba(255,255,255,.4)" font-family="Inter">C.M</text>
+            <circle cx="244" cy="175" r="17" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.15)" stroke-width="1"/><text x="244" y="179" text-anchor="middle" font-size="7" fill="rgba(255,255,255,.4)" font-family="Inter">R.D</text>
+            <circle cx="130" cy="244" r="17" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.15)" stroke-width="1"/><text x="130" y="248" text-anchor="middle" font-size="7" fill="rgba(255,255,255,.4)" font-family="Inter">L.W</text>
+            <circle cx="16"  cy="175" r="17" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.15)" stroke-width="1"/><text x="16"  y="179" text-anchor="middle" font-size="7" fill="rgba(255,255,255,.4)" font-family="Inter">M.T</text>
+            <circle cx="32"  cy="65"  r="17" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.15)" stroke-width="1"/><text x="32"  y="69"  text-anchor="middle" font-size="7" fill="rgba(255,255,255,.4)" font-family="Inter">J.E</text>
+          </g>
+          <g class="orb-gr">
+            <circle cx="130" cy="58"  r="14" fill="rgba(0,113,227,.18)" stroke="rgba(0,113,227,.5)" stroke-width="1"/><text x="130" y="62"  text-anchor="middle" font-size="6" fill="rgba(100,160,255,.8)" font-family="Inter">T.M</text>
+            <circle cx="186" cy="152" r="14" fill="rgba(0,113,227,.18)" stroke="rgba(0,113,227,.5)" stroke-width="1"/><text x="186" y="156" text-anchor="middle" font-size="6" fill="rgba(100,160,255,.8)" font-family="Inter">S.P</text>
+            <circle cx="74"  cy="152" r="14" fill="rgba(0,113,227,.18)" stroke="rgba(0,113,227,.5)" stroke-width="1"/><text x="74"  y="156" text-anchor="middle" font-size="6" fill="rgba(100,160,255,.8)" font-family="Inter">You</text>
+          </g>
+        </svg>
+        <div class="orbit-center"><div class="oc-n">5s</div><div class="oc-s">of silence</div></div>
+      </div>
+      <div class="cpoints">
+        <div class="cp"><div class="cp-dot cp-out"></div><div><h4>Outer ring — spoke more</h4><p>Participants who've spoken the most sit on the outer ring.</p></div></div>
+        <div class="cp"><div class="cp-dot cp-in"></div><div><h4>Inner ring — spoke less</h4><p>Those who've said less move inward — a gentle cue that the floor is open to them.</p></div></div>
+        <div class="cp"><div class="cp-dot cp-neu"></div><div><h4>Slowly rotating</h4><p>The arrangement rotates until someone speaks. No one is fixed at center.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-sec">
+  <div class="container reveal">
+    <h2>Ready to try it?</h2>
+    <p>Join a meeting and see the in-between moments for yourself.</p>
+    <a href="/" class="btn-cta">Join a Meeting</a>
+  </div>
+</section>
+
+<footer>
+  <span class="footer-logo">InBetween</span>
+  <span class="footer-copy">© 2025 InBetween</span>
+</footer>
+
+<script>
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); obs.unobserve(e.target); } });
+}, { threshold: 0.12 });
+document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+</script>
+</body>
+</html>

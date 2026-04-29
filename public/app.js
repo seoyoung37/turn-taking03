@@ -766,29 +766,50 @@ function applyLocalCues(lip, lean, gaze, data) {
   const tile = data.tile;
   if (!tile) return;
 
-  // Remove all cue classes
-  tile.classList.remove('mouth-open', 'leaning', 'gaze-pull');
+  const wasLeaning = tile.classList.contains('leaning');
 
+  // Clear all cue states
+  tile.classList.remove('mouth-open', 'leaning', 'gaze-pull');
+  tile.style.removeProperty('--pull-x');
+  tile.style.removeProperty('--pull-y');
+
+  // ── Open mouth + Leaning Forward ─────────────────────────────────────
+  // STRONG signal. Bottom (mouth area) swings toward viewer first.
+  // Pivot from TOP edge so the bottom comes forward.
   if (lip && lean) {
-    tile.classList.add('leaning');
-  } else if (lip && gaze) {
-    // Pull tile toward speaker direction
+    tile.style.transformOrigin = 'top center';
+    requestAnimationFrame(() => tile.classList.add('leaning'));
+
+  // ── Open mouth + Gazing at Speaker ───────────────────────────────────
+  // WEAK signal. Tile subtly inflates toward speaker direction only.
+  // No speaker present or speaker is self → no effect.
+  } else if (lip && gaze && currentSpeaker && currentSpeaker !== localIdentity) {
+    if (wasLeaning) tile.style.transformOrigin = '';
+
     const speakerData = pMap.get(currentSpeaker);
-    const localData   = data;
-    if (speakerData && localData) {
+    if (speakerData) {
       const sr = speakerData.tile.getBoundingClientRect();
-      const lr = localData.tile.getBoundingClientRect();
-      const pullX = Math.sign(sr.left - lr.left) * 0.5;
-      const pullY = Math.sign(sr.top  - lr.top)  * 0.3;
-      tile.style.setProperty('--pull-x', pullX);
-      tile.style.setProperty('--pull-y', pullY);
+      const lr = tile.getBoundingClientRect();
+      const dx = (sr.left + sr.width  / 2) - (lr.left + lr.width  / 2);
+      const dy = (sr.top  + sr.height / 2) - (lr.top  + lr.height / 2);
+      const maxD = Math.max(Math.abs(dx), Math.abs(dy), 1);
+      const nx = Math.max(-1, Math.min(1, dx / maxD));
+      const ny = Math.max(-1, Math.min(1, dy / maxD));
+      tile.style.setProperty('--pull-x', nx.toFixed(2));
+      tile.style.setProperty('--pull-y', ny.toFixed(2));
+      tile.classList.add('gaze-pull');
     }
-    tile.classList.add('gaze-pull');
-  } else if (lip) {
-    tile.classList.add('mouth-open');
+    // No speaker data → no visual change (lip alone = nothing)
+
+  // ── Open mouth alone, or no cue ──────────────────────────────────────
+  // Lip open without lean AND without gaze = NO visual effect.
+  } else if (wasLeaning) {
+    setTimeout(() => {
+      if (!tile.classList.contains('leaning')) tile.style.transformOrigin = '';
+    }, 780);
   }
 
-  // Update cue dots
+  // Cue-dot debug indicators
   if (data.cueDots) {
     const dots = data.cueDots.querySelectorAll('.cue-dot');
     dots[0]?.classList.toggle('active', lip);

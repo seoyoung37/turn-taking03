@@ -39,6 +39,20 @@ nav {
   font-size: 0.72rem; font-weight: 400; color: var(--g3);
   background: var(--g1); border-radius: 6px; padding: 4px 10px;
 }
+.nav-link-plain {
+  font-size: 0.8rem; font-weight: 400; color: #555;
+  text-decoration: none; padding: 6px 12px; border-radius: 8px;
+  transition: background 0.15s;
+}
+.nav-link-plain:hover { background: var(--g1); color: var(--black); }
+.btn-nav-plain {
+  background: var(--blue); color: #fff;
+  border-radius: 999px; border: none; cursor: pointer;
+  padding: 7px 18px; font-family: inherit;
+  font-size: 0.8rem; font-weight: 500; letter-spacing: -0.01em;
+  transition: background 0.2s;
+}
+.btn-nav-plain:hover { background: #0077ed; }
 
 /* FLOATING BUBBLES */
 .bubble {
@@ -295,19 +309,28 @@ nav {
   background:#fff;
   box-shadow:0 10px 32px rgba(0,113,227,.07);
 }
-.tile.mouth-open:not(.speaker):not(.held-speaker) {
-  transform:perspective(700px) rotateX(36deg);
-  border-color:rgba(0,0,0,.06);
-}
+/* No lip-only state — open mouth is just the prerequisite.
+   Only two visual cue states exist: gaze-pull and leaning. */
+
 .tile.leaning:not(.speaker):not(.held-speaker) {
-  transform:perspective(700px) rotateX(12deg);
-  box-shadow:0 12px 36px rgba(0,0,0,.08);
-  border-color:rgba(0,0,0,.1);
+  /* Open mouth + Leaning Forward: BOTTOM (mouth area) rises toward viewer first.
+     transform-origin switched to top center via JS so the bottom swings forward.
+     Strong turn-claiming signal. */
+  transform: perspective(700px) rotateX(-20deg);
+  box-shadow: 0 20px 48px rgba(0,0,0,.13);
+  border-color: rgba(0,0,0,.16);
 }
+
 .tile.gaze-pull:not(.speaker):not(.held-speaker) {
-  transform:perspective(700px) rotateX(38deg)
-    rotateY(calc(var(--pull-x,0) * 10deg))
-    rotateZ(calc(var(--pull-y,0) * 3deg));
+  /* Open mouth + Gazing at Speaker: subtle directional inflation.
+     The edge closest to the speaker rises slightly. Weak signal.
+     --pull-y: -1 = speaker above (top edge inflates), +1 = speaker below
+     --pull-x: -1 = speaker left (left edge rises), +1 = speaker right */
+  transform: perspective(700px)
+    rotateX(calc(42deg + var(--pull-y, 0) * 14deg))
+    rotateY(calc(var(--pull-x, 0) * 12deg));
+  border-color: rgba(0,113,227,.14);
+  box-shadow: 0 6px 20px rgba(0,113,227,.06);
 }
 
 /* Tile inner */
