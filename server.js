@@ -38,6 +38,6 @@ app.post('/api/token', async (req, res) => {
   res.json({ token, url: livekitUrl });
 });
 
-app.listen(PORT, () => {
-  console.log(`InBetween server running on http://localhost:${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`InBetween server running on port ${PORT}`);
 });
