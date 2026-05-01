@@ -1023,3 +1023,230 @@ nav {
   }
 }
 
+
+/* ═══════════════════════════ FIX LANDING PAGE BUBBLES ═══ */
+
+.nav-r {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* SVG avatar colors */
+.bw1 .av-bg { fill: #eef3ff; }
+.bw1 .av-head,
+.bw1 .av-body { fill: #b8cef7; }
+
+.bw2 .av-bg { fill: #f3eeff; }
+.bw2 .av-head,
+.bw2 .av-body { fill: #c8a8f0; }
+
+.bw3 .av-bg { fill: #edfaf3; }
+.bw3 .av-head,
+.bw3 .av-body { fill: #80d4a8; }
+
+.bw4 .av-bg { fill: #fdf8ee; }
+.bw4 .av-head,
+.bw4 .av-body { fill: #e8c060; }
+
+.bw5 .av-bg { fill: #fff0f5; }
+.bw5 .av-head,
+.bw5 .av-body { fill: #f0a0c0; }
+
+.bw6 .av-bg { fill: #edfbff; }
+.bw6 .av-head,
+.bw6 .av-body { fill: #60cce0; }
+
+.bw-you .av-bg { fill: #f0f0f0; }
+.bw-you .av-head,
+.bw-you .av-body { fill: #888; }
+
+/* Bubble sizes + original positions */
+.bw1 {
+  top: 10%;
+  left: 6%;
+  opacity: 0;
+  animation:
+    bIn 0.55s cubic-bezier(0.34, 1.4, 0.64, 1) 0.5s forwards,
+    flt1 8s ease-in-out 1.3s infinite;
+}
+
+.bw1 .bcircle {
+  width: 114px;
+  height: 114px;
+  background: #eef3ff;
+  box-shadow: 0 10px 32px rgba(80, 120, 255, 0.1);
+}
+
+.bw2 {
+  top: 6%;
+  right: 13%;
+  opacity: 0;
+  animation:
+    bIn 0.55s cubic-bezier(0.34, 1.4, 0.64, 1) 0.63s forwards,
+    flt2 9s ease-in-out 1.7s infinite;
+}
+
+.bw2 .bcircle {
+  width: 88px;
+  height: 88px;
+  background: #f3eeff;
+  box-shadow: 0 8px 24px rgba(130, 80, 255, 0.09);
+}
+
+.bw3 {
+  top: 44%;
+  left: 3%;
+  opacity: 0;
+  animation:
+    bIn 0.55s cubic-bezier(0.34, 1.4, 0.64, 1) 0.76s forwards,
+    flt3 10s ease-in-out 2.1s infinite;
+}
+
+.bw3 .bcircle {
+  width: 104px;
+  height: 104px;
+  background: #edfaf3;
+  box-shadow: 0 8px 28px rgba(40, 180, 100, 0.09);
+}
+
+.bw4 {
+  top: 57%;
+  right: 7%;
+  opacity: 0;
+  animation:
+    bIn 0.55s cubic-bezier(0.34, 1.4, 0.64, 1) 0.84s forwards,
+    flt4 7s ease-in-out 1.1s infinite;
+}
+
+.bw4 .bcircle {
+  width: 80px;
+  height: 80px;
+  background: #fdf8ee;
+  box-shadow: 0 6px 20px rgba(210, 160, 30, 0.1);
+}
+
+.bw5 {
+  bottom: 12%;
+  left: 11%;
+  opacity: 0;
+  animation:
+    bIn 0.55s cubic-bezier(0.34, 1.4, 0.64, 1) 0.92s forwards,
+    flt5 9s ease-in-out 1.9s infinite;
+}
+
+.bw5 .bcircle {
+  width: 92px;
+  height: 92px;
+  background: #fff0f5;
+  box-shadow: 0 7px 24px rgba(220, 70, 110, 0.08);
+}
+
+.bw6 {
+  bottom: 8%;
+  right: 16%;
+  opacity: 0;
+  animation:
+    bIn 0.55s cubic-bezier(0.34, 1.4, 0.64, 1) 0.98s forwards,
+    flt2 8s ease-in-out 2.3s infinite;
+}
+
+.bw6 .bcircle {
+  width: 84px;
+  height: 84px;
+  background: #edfbff;
+  box-shadow: 0 6px 22px rgba(20, 170, 210, 0.09);
+}
+
+.bw-you {
+  top: 10%;
+  right: 24%;
+  z-index: 5;
+  opacity: 0;
+  animation:
+    bIn 0.65s cubic-bezier(0.34, 1.4, 0.64, 1) 0.57s forwards,
+    flt3 10s ease-in-out 2s infinite;
+}
+
+.bw-you .bcircle {
+  width: 148px;
+  height: 148px;
+  background: #fff;
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.12),
+    0 4px 16px rgba(0, 0, 0, 0.05);
+  outline: 1.5px solid var(--black);
+}
+
+/* You bubble ripple */
+.you-rings {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.wring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  opacity: 0;
+  animation: wave 3.2s ease-out infinite;
+}
+
+.wring:nth-child(2) {
+  animation-delay: 1.07s;
+}
+
+.wring:nth-child(3) {
+  animation-delay: 2.13s;
+}
+
+@keyframes wave {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+
+@keyframes flt1 {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes flt2 {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-13px); }
+}
+
+@keyframes flt3 {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes flt4 {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-11px); }
+}
+
+@keyframes flt5 {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-9px); }
+}
+
+@keyframes bIn {
+  from {
+    opacity: 0;
+    transform: scale(0.75) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
