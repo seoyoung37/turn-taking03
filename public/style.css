@@ -18,7 +18,7 @@
   --border: rgba(0, 0, 0, 0.08);
   --r-tile: 16px;
   --flat-clip: inset(48% 0 48% 0 round var(--r-tile));
-  --cue-clip: inset(38% 0 26% 0 round var(var(--r-tile)));
+  --cue-clip: inset(50% 0 30vw 0 round var(var(--r-tile)));
   --open-clip: inset(0 0 0 0 round var(--r-tile));
 
   font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
