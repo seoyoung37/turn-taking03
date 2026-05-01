@@ -18,6 +18,7 @@
   --border: rgba(0, 0, 0, 0.08);
   --r-tile: 16px;
   --flat-clip: inset(48% 0 48% 0 round var(--r-tile));
+  --cue-clip: inset(38% 0 26% 0 round var(var(--r-tile)));
   --open-clip: inset(0 0 0 0 round var(--r-tile));
 
   font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
@@ -634,11 +635,16 @@ nav {
 
   모두 flat line에서 중앙선을 기준으로 위/아래가 열림.
 */
-.tile.center-expand,
+.tile.center-expand {
+  clip-path: var(--cue-clip);
+  transform: perspective(900px) rotateX(0deg);
+  z-index: 5;
+}
+
 .tile.speaker {
   clip-path: var(--open-clip);
   transform: perspective(900px) rotateX(0deg);
-  z-index: 5;
+  z-index: 6;
 }
 
 .tile.expand-pulse {
