@@ -131,10 +131,10 @@ h2 { font-size:clamp(2rem,3.5vw,2.8rem);font-weight:600;line-height:1.1;letter-s
 .circle-section h2 { color:#fff; }
 .circle-section .lead { color:rgba(255,255,255,.45); }
 .circle-layout { display:grid;grid-template-columns:260px 1fr;gap:56px;align-items:center;margin-top:48px; }
-.orbit-wrap { position:relative;width:260px;height:260px;flex-shrink:0; }
+.orbit-wrap { position:relative;width:260px;height:260px;flex-shrink:0; overflow:visible; }
 .orbit-ring { position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:50%;border:1px solid rgba(255,255,255,.1); }
 .or-out { width:240px;height:240px; } .or-inn { width:144px;height:144px; }
-.orbit-svg { position:absolute;top:0;left:0; }
+.orbit-svg { position:absolute;top:0;left:0; overflow:visible; }
 .orb-g  { animation:spin 18s linear infinite; transform-origin:130px 130px; }
 .orb-gr { animation:spin 26s linear infinite reverse; transform-origin:130px 130px; }
 @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
