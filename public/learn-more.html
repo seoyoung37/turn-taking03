@@ -31,67 +31,86 @@ h2 { font-size:clamp(2rem,3.5vw,2.8rem);font-weight:600;line-height:1.1;letter-s
 .hero h1 { font-size:clamp(2.8rem,5vw,4rem);font-weight:600;line-height:1.07;letter-spacing:-.04em;margin-bottom:16px; }
 .hero p { font-size:1.05rem;color:var(--g3);line-height:1.7;max-width:480px;margin-bottom:48px; }
 
-/* Tile state strip — 4 states: flat, gaze, lean, speaker */
-.strip-wrap { perspective:900px;perspective-origin:50% 60%;display:flex;align-items:flex-end;justify-content:center;gap:16px;height:140px; }
-.st { width:96px;height:116px;border-radius:12px;border:1.5px solid var(--border);background:var(--g1);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;transform-origin:bottom center;position:relative; }
-.st .face { width:32px;height:32px;border-radius:50%;background:var(--g2); }
-.st .lbl { position:absolute;bottom:8px;left:50%;transform:translateX(-50%);font-size:.52rem;font-weight:500;color:var(--g3);background:rgba(255,255,255,.9);border-radius:999px;padding:2px 9px;white-space:nowrap; }
+/* CENTER-REVEAL tile strip */
+.strip-wrap {
+  display:flex;align-items:center;justify-content:center;gap:24px;
+  margin-top:8px;padding:20px 0;
+}
+.cr-tile {
+  position:relative;width:88px;height:110px;border-radius:12px;
+  background:var(--g1);border:1.5px solid var(--border);
+  overflow:hidden;display:flex;align-items:center;justify-content:center;
+  flex-direction:column;
+}
+/* the "reveal" slot in the center — shows the mouth strip */
+.cr-slot {
+  position:absolute;left:0;right:0;
+  background:#fff;
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;transition:height .5s cubic-bezier(.34,1.3,.64,1),border-color .3s;
+  border-top:1px solid var(--border);border-bottom:1px solid var(--border);
+}
+.cr-mouth {
+  width:28px;height:7px;border-radius:4px;background:var(--g2);
+}
+.cr-label {
+  position:absolute;bottom:7px;left:50%;transform:translateX(-50%);
+  font-size:.5rem;font-weight:500;color:var(--g3);
+  background:rgba(255,255,255,.92);border-radius:999px;padding:2px 8px;white-space:nowrap;
+}
+/* States */
+.cr-flat .cr-slot   { height:0;border-color:transparent; }
+.cr-cue .cr-slot    { height:28px;border-color:rgba(0,0,0,.08); }
+.cr-cue .cr-mouth   { background:#aaa; }
+.cr-cue             { border-color:rgba(0,0,0,.1); }
+.cr-speak .cr-slot  { height:110px;border-color:var(--blue); }
+.cr-speak .cr-mouth { background:var(--blue); }
+.cr-speak           { border-color:var(--blue);box-shadow:0 12px 32px rgba(0,113,227,.14); }
+.cr-speak .cr-label { background:var(--blue);color:#fff; }
 
-.st-flat  { transform:perspective(650px) rotateX(55deg);background:#f0f0f5; }
-.st-gaze  { transform:perspective(650px) rotateX(30deg) rotateY(14deg);border-color:rgba(0,113,227,.2);background:#f5f8ff; }
-.st-gaze  .face { background:#7db0e8; }
-.st-lean  { transform-origin:top center;transform:perspective(650px) rotateX(-18deg);background:#fff;border-color:rgba(0,0,0,.15);box-shadow:0 14px 36px rgba(0,0,0,.1); }
-.st-lean  .face { background:#444; }
-.st-speak { transform:perspective(650px) rotateX(0deg);background:#fff;border:2px solid var(--blue);box-shadow:0 14px 40px rgba(0,113,227,.14);z-index:5; }
-.st-speak .face { background:var(--blue); }
-.st-speak .lbl { background:var(--blue);color:#fff; }
-
-.strip-lbls { display:flex;justify-content:center;gap:16px;margin-top:14px; }
-.s-lbl { width:96px;text-align:center;font-size:.62rem;color:var(--g3); }
+.strip-lbls { display:flex;justify-content:center;gap:24px;margin-top:12px; }
+.s-lbl { width:88px;text-align:center;font-size:.62rem;color:var(--g3); }
 .s-lbl.hi { color:var(--blue);font-weight:500; }
 
-/* TWO SIGNALS SECTION */
-.signals-split { display:grid;grid-template-columns:1fr 1fr;gap:2px;background:var(--border);border:.5px solid var(--border);border-radius:20px;overflow:hidden;margin-top:48px; }
-.sig-side { background:#fff;padding:40px 36px;display:flex;flex-direction:column; }
-.sig-side.b { background:var(--g1); }
+/* THREE TRIGGERS SECTION */
+.triggers-grid {
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:2px;background:var(--border);border:.5px solid var(--border);
+  border-radius:20px;overflow:hidden;margin-top:48px;
+}
+.trig-card { background:#fff;padding:32px 28px;display:flex;flex-direction:column;gap:12px; }
+.trig-card:nth-child(2) { background:var(--g1); }
+.trig-tag {
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--g1);border-radius:999px;padding:4px 12px;
+  font-size:.68rem;font-weight:500;color:var(--g3);width:fit-content;
+}
+.trig-card:nth-child(2) .trig-tag { background:#fff; }
+.trig-dot { width:6px;height:6px;border-radius:50%; }
+.trig-title { font-size:1rem;font-weight:600;letter-spacing:-.025em;line-height:1.3; }
+.trig-desc { font-size:.84rem;color:var(--g3);line-height:1.7; }
 
-.sig-tag { display:inline-flex;align-items:center;gap:6px;background:var(--g1);border-radius:999px;padding:5px 14px;font-size:.72rem;font-weight:500;color:var(--g3);margin-bottom:14px;width:fit-content; }
-.sig-side.b .sig-tag { background:#fff; }
-.sig-tag-dot { width:6px;height:6px;border-radius:50%; }
-
-.strength { display:flex;gap:4px;margin-bottom:16px; }
-.s-pip { width:7px;height:7px;border-radius:50%;background:var(--g2); }
-.s-pip.on { background:var(--blue); }
-
-.sig-title { font-size:1.15rem;font-weight:600;letter-spacing:-.03em;margin-bottom:10px; }
-.sig-desc { font-size:.88rem;color:var(--g3);line-height:1.75;flex:1; }
-
-/* GAZE DEMO */
-.gaze-demo { margin-top:28px;display:flex;align-items:flex-end;gap:8px;perspective:280px;perspective-origin:50% 60%;height:72px; }
-.gd { width:50px;height:62px;border-radius:8px;background:var(--g1);border:1px solid var(--g2);transform-origin:bottom center;display:flex;align-items:center;justify-content:center; }
-.gdf { width:18px;height:18px;border-radius:50%;background:var(--g2); }
-.gd.flat-g  { transform:perspective(220px) rotateX(52deg); }
-.gd.gazer   { transform:perspective(220px) rotateX(28deg) rotateY(18deg);border-color:rgba(0,113,227,.3);background:#f5f8ff; }
-.gd.gazer .gdf { background:#7db0e8; }
-.gd.spk     { transform:perspective(220px) rotateX(0deg);background:#fff;border:1.5px solid var(--blue);box-shadow:0 4px 14px rgba(0,113,227,.1); }
-.gd.spk .gdf { background:var(--blue); }
-.gaze-arrow { color:rgba(0,113,227,.4);font-size:1rem;align-self:center;flex-shrink:0; }
-.demo-note { font-size:.6rem;color:var(--g3);margin-top:8px;font-style:italic; }
-
-/* LEAN DEMO */
-.lean-demo { margin-top:28px;display:flex;align-items:center;gap:12px;perspective:280px;perspective-origin:50% 20%;height:80px; }
-.ld { width:60px;height:72px;border-radius:8px;background:var(--g1);border:1px solid var(--g2);display:flex;align-items:center;justify-content:center; }
-.ldf { width:20px;height:20px;border-radius:50%;background:var(--g2); }
-.ld.flat-l  { transform:perspective(220px) rotateX(52deg); }
-.ld.leaner  { transform-origin:top center;transform:perspective(220px) rotateX(-22deg);background:#fff;border-color:rgba(0,0,0,.18);box-shadow:0 12px 28px rgba(0,0,0,.1); }
-.ld.leaner .ldf { background:#444; }
-.lean-arrow { color:var(--g3);font-size:1rem;flex-shrink:0; }
-
-/* Direction grid for gaze */
-.dir-grid { display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px; }
-.dir-item { background:#fff;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:8px;border:.5px solid var(--border); }
-.dir-arrow { font-size:.9rem;color:var(--blue); }
-.dir-text { font-size:.72rem;color:var(--g3);line-height:1.4; }
+/* Mini center-reveal demo inside each card */
+.mini-reveal {
+  display:flex;align-items:center;justify-content:center;
+  margin-top:12px;
+}
+.mr-tile {
+  position:relative;width:64px;height:80px;border-radius:10px;
+  background:var(--g1);border:1.5px solid var(--border);
+  overflow:hidden;
+}
+.mr-slot {
+  position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);
+  height:22px;
+  background:#fff;border-top:1px solid rgba(0,0,0,.08);border-bottom:1px solid rgba(0,0,0,.08);
+  display:flex;align-items:center;justify-content:center;
+}
+.mr-m { width:20px;height:5px;border-radius:3px;background:#bbb; }
+.mr-tile.active { border-color:rgba(0,0,0,.14); }
+.mr-tile.active .mr-slot { background:#fff; }
+.mr-tile.active .mr-m { background:#888; }
+.mini-arrow { color:var(--g3);font-size:.9rem;margin:0 8px; }
 
 /* MUTE */
 .mute-grid { display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center; }
@@ -158,87 +177,101 @@ footer { border-top:.5px solid var(--border);padding:28px;display:flex;align-ite
   <div class="container" style="display:flex;flex-direction:column;align-items:center">
     <span class="label reveal">How it works</span>
     <h1 class="reveal">The moment before<br>you speak.</h1>
-    <p class="reveal">Most video calls show you who's talking. InBetween shows what comes just before, the moment someone is about to say something.</p>
+    <p class="reveal">Most video calls show you who's talking. InBetween shows what comes just before — the moment someone is about to say something, revealed through a single interaction: the tile opens.</p>
 
-    <!-- 4-state strip: flat / gaze / lean / speaker -->
+    <!-- Center-reveal strip: flat → cue (mouth revealed) → speaking (full open) -->
     <div class="strip-wrap reveal">
-      <div class="st st-flat"><div class="face"></div><div class="lbl">Listening</div></div>
-      <div class="st st-gaze"><div class="face"></div><div class="lbl">Gazing</div></div>
-      <div class="st st-lean"><div class="face"></div><div class="lbl">Leaning</div></div>
-      <div class="st st-speak"><div class="face"></div><div class="lbl">Speaking</div></div>
+      <div class="cr-tile cr-flat">
+        <div class="cr-slot"><div class="cr-mouth"></div></div>
+        <div class="cr-label">Listening</div>
+      </div>
+      <div class="cr-tile cr-cue">
+        <div class="cr-slot"><div class="cr-mouth"></div></div>
+        <div class="cr-label">Pre-speech</div>
+      </div>
+      <div class="cr-tile cr-speak">
+        <div class="cr-slot"><div class="cr-mouth"></div></div>
+        <div class="cr-label">Speaking</div>
+      </div>
     </div>
     <div class="strip-lbls reveal">
-      <div class="s-lbl">Default</div>
-      <div class="s-lbl">Mouth + gaze</div>
-      <div class="s-lbl hi">Mouth + lean</div>
-      <div class="s-lbl">Active speaker</div>
+      <div class="s-lbl">Tile flat,<br>slot closed</div>
+      <div class="s-lbl hi">Slot opens —<br>mouth visible</div>
+      <div class="s-lbl">Tile fully<br>expands</div>
     </div>
   </div>
 </section>
 
-<!-- PROBLEM -->
+<!-- HOW THE REVEAL WORKS -->
 <section>
   <div class="container reveal">
-    <span class="label">The problem</span>
-    <h2>Online calls lose<br>the in-between moments.</h2>
-    <p class="lead">In a physical room you can feel when someone is about to speak through a lean forward, a glance toward the current speaker, a breath. Online, that signal disappears. People talk over each other, silences feel awkward, and quieter voices never find their moment.</p>
-    <p class="lead" style="margin-top:16px">InBetween restores that layer by reading open mouth combined with body signals, and making them visible to everyone in the call.</p>
+    <span class="label">The interaction</span>
+    <h2>One motion.<br>Three triggers.</h2>
+    <p class="lead">InBetween uses the same center-reveal for all pre-speech cues. Whether you unmute, part your lips while gazing at the speaker, or part your lips while leaning forward — the flattened tile opens just enough to reveal the mouth area. Once speech is detected, the tile fully expands into an active speaker view.</p>
   </div>
-</section>
 
-<!-- THE TWO SIGNALS -->
-<section>
   <div class="container">
-    <span class="label reveal">Pre-speech signals</span>
-    <h2 class="reveal">Open mouth.<br>Two different signals.</h2>
-    <p class="lead reveal">An open mouth on its own does nothing, it's just the prerequisite. What InBetween reads is what the body does <em>at the same time</em> as the mouth opens.</p>
+    <div class="triggers-grid reveal">
 
-    <div class="signals-split reveal">
-
-      <!-- A: Gazing Speaker -->
-      <div class="sig-side">
-        <div class="sig-tag"><span class="sig-tag-dot" style="background:#a8beee"></span>Open mouth + Gazing at speaker</div>
-        <div class="strength"><div class="s-pip on"></div><div class="s-pip on"></div><div class="s-pip"></div><div class="s-pip"></div></div>
-        <div class="sig-title">Directional pull</div>
-        <p class="sig-desc">When you open your mouth AND look toward whoever is currently speaking, your tile subtly inflates in their direction. The edge facing the speaker rises slightly, just a lean toward them. It signals "I'm listening, I might step in."</p>
-
-        <div class="gaze-demo">
-          <div class="gd flat-g"><div class="gdf"></div></div>
-          <div class="gd gazer"><div class="gdf"></div></div>
-          <div class="gd flat-g"><div class="gdf"></div></div>
-          <div class="gaze-arrow">→</div>
-          <div class="gd spk"><div class="gdf"></div></div>
-        </div>
-        <p class="demo-note">Gazer's right edge inflates toward the speaker</p>
-
-        <!-- Direction key -->
-        <div class="dir-grid" style="margin-top:20px">
-          <div class="dir-item"><span class="dir-arrow">↑</span><span class="dir-text">Speaker above → top edge rises</span></div>
-          <div class="dir-item"><span class="dir-arrow">↓</span><span class="dir-text">Speaker below → tile stays flat</span></div>
-          <div class="dir-item"><span class="dir-arrow">←</span><span class="dir-text">Speaker left → left edge rises</span></div>
-          <div class="dir-item"><span class="dir-arrow">→</span><span class="dir-text">Speaker right → right edge rises</span></div>
+      <!-- Trigger 1: Unmute -->
+      <div class="trig-card">
+        <div class="trig-tag"><span class="trig-dot" style="background:#d1d1d6"></span>Trigger 1</div>
+        <div class="trig-title">Unmuting</div>
+        <p class="trig-desc">The moment you unmute your microphone, your tile center opens to reveal the mouth area. It signals to everyone: this person is now ready to speak.</p>
+        <div class="mini-reveal">
+          <div class="mr-tile" style="opacity:.4;border-color:var(--g2)">
+            <div class="mr-slot" style="height:0;border-color:transparent"><div class="mr-m"></div></div>
+          </div>
+          <div class="mini-arrow">→</div>
+          <div class="mr-tile active">
+            <div class="mr-slot"><div class="mr-m"></div></div>
+          </div>
         </div>
       </div>
 
-      <!-- B: Leaning Forward -->
-      <div class="sig-side b">
-        <div class="sig-tag"><span class="sig-tag-dot" style="background:#444"></span>Open mouth + Leaning forward</div>
-        <div class="strength"><div class="s-pip on"></div><div class="s-pip on"></div><div class="s-pip on"></div><div class="s-pip on"></div></div>
-        <div class="sig-title">Bottom rises first</div>
-        <p class="sig-desc">When you open your mouth AND lean your body toward the camera, InBetween reads this as a strong turn-claiming signal. The bottom of your tile where your mouth appears, swings toward the viewer first, as if your chin is leading the way in. This means "I'm about to speak."</p>
-
-        <div class="lean-demo">
-          <div class="ld flat-l"><div class="ldf"></div></div>
-          <div class="lean-arrow">→</div>
-          <div class="ld leaner"><div class="ldf"></div></div>
-        </div>
-        <p class="demo-note" style="text-align:center;margin-top:10px">Top stays anchored — bottom (mouth area) swings toward viewer</p>
-
-        <div style="margin-top:20px;background:#fff;border-radius:10px;padding:14px 16px;border:.5px solid var(--border)">
-          <p style="font-size:.78rem;color:var(--g3);line-height:1.6">While gazing signals <em>connection</em>, leaning signals <em>intent</em>. The tile's upward motion from the bottom mirrors the physical act of leaning in to speak.</p>
+      <!-- Trigger 2: Lip + Gaze -->
+      <div class="trig-card">
+        <div class="trig-tag"><span class="trig-dot" style="background:#7db0e8"></span>Trigger 2</div>
+        <div class="trig-title">Lip open +<br>Gazing at speaker</div>
+        <p class="trig-desc">When you part your lips while looking toward whoever is currently speaking, the same center-reveal activates. A soft signal of connection — "I'm engaged, I might step in."</p>
+        <div class="mini-reveal">
+          <div class="mr-tile" style="opacity:.4;border-color:var(--g2)">
+            <div class="mr-slot" style="height:0;border-color:transparent"><div class="mr-m"></div></div>
+          </div>
+          <div class="mini-arrow">→</div>
+          <div class="mr-tile active">
+            <div class="mr-slot"><div class="mr-m"></div></div>
+          </div>
         </div>
       </div>
 
+      <!-- Trigger 3: Lip + Lean -->
+      <div class="trig-card">
+        <div class="trig-tag"><span class="trig-dot" style="background:#444"></span>Trigger 3</div>
+        <div class="trig-title">Lip open +<br>Leaning forward</div>
+        <p class="trig-desc">Parting your lips while leaning toward the camera triggers the same reveal. This is the strongest pre-speech signal — "I'm about to speak" — and the slot opens with more emphasis.</p>
+        <div class="mini-reveal">
+          <div class="mr-tile" style="opacity:.4;border-color:var(--g2)">
+            <div class="mr-slot" style="height:0;border-color:transparent"><div class="mr-m"></div></div>
+          </div>
+          <div class="mini-arrow">→</div>
+          <div class="mr-tile active" style="border-color:rgba(0,0,0,.2);box-shadow:0 8px 20px rgba(0,0,0,.1)">
+            <div class="mr-slot" style="height:26px"><div class="mr-m" style="background:#555"></div></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Full expansion note -->
+    <div class="reveal" style="margin-top:24px;background:var(--g1);border-radius:16px;padding:24px 28px;display:flex;align-items:center;gap:20px">
+      <div style="width:40px;height:40px;border-radius:10px;background:#fff;border:1.5px solid var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M7 2l5 5-5 5" stroke="var(--blue)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div>
+        <div style="font-size:.88rem;font-weight:600;margin-bottom:3px">Once speech is detected → full expansion</div>
+        <div style="font-size:.82rem;color:var(--g3);line-height:1.6">When the microphone picks up actual speech, the tile leaves the reveal state and expands completely into the active speaker view with a blue border.</div>
+      </div>
     </div>
   </div>
 </section>
@@ -250,7 +283,7 @@ footer { border-top:.5px solid var(--border);padding:28px;display:flex;align-ite
       <div>
         <span class="label">Microphone state</span>
         <h2>Mute is<br>the gatekeeper.</h2>
-        <p class="lead">If you're muted, neither signal fires, because you can't actually speak. Only when unmuted does InBetween begin reading mouth + body signals. The system respects your intent and only surfaces cues that are meaningful.</p>
+        <p class="lead">If you're muted, neither signal fires — because you can't actually speak. Only when unmuted does InBetween begin reading mouth + body signals. The system respects your intent and only surfaces cues that are meaningful.</p>
       </div>
       <div class="mute-card">
         <div class="mute-row">
@@ -276,24 +309,24 @@ footer { border-top:.5px solid var(--border);padding:28px;display:flex;align-ite
   <div class="container">
     <span class="label reveal">No speaker mode</span>
     <h2 class="reveal">Silence becomes<br>an opening.</h2>
-    <p class="lead reveal">After 5 seconds of no one speaking, InBetween shifts modes. All tiles go upright and rearrange into a slowly rotating circle, split by how much each person has spoken.</p>
+    <p class="lead reveal">After 5 seconds of no one speaking, InBetween shifts modes. All tiles go upright and rearrange into a slowly rotating circle — split by how much each person has spoken.</p>
     <div class="circle-layout reveal">
       <div class="orbit-wrap">
         <div class="orbit-ring or-out"></div>
         <div class="orbit-ring or-inn"></div>
         <svg class="orbit-svg" width="260" height="260" viewBox="0 0 260 260">
           <g class="orb-g">
-            <circle cx="130" cy="16"  r="17" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.15)" stroke-width="1"/><text x="130" y="20"  text-anchor="middle" font-size="7" fill="rgba(255,255,255,.4)" font-family="Inter"></text>
-            <circle cx="228" cy="65"  r="17" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.15)" stroke-width="1"/><text x="228" y="69"  text-anchor="middle" font-size="7" fill="rgba(255,255,255,.4)" font-family="Inter"></text>
-            <circle cx="244" cy="175" r="17" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.15)" stroke-width="1"/><text x="244" y="179" text-anchor="middle" font-size="7" fill="rgba(255,255,255,.4)" font-family="Inter"></text>
-            <circle cx="130" cy="244" r="17" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.15)" stroke-width="1"/><text x="130" y="248" text-anchor="middle" font-size="7" fill="rgba(255,255,255,.4)" font-family="Inter"></text>
-            <circle cx="16"  cy="175" r="17" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.15)" stroke-width="1"/><text x="16"  y="179" text-anchor="middle" font-size="7" fill="rgba(255,255,255,.4)" font-family="Inter"></text>
-            <circle cx="32"  cy="65"  r="17" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.15)" stroke-width="1"/><text x="32"  y="69"  text-anchor="middle" font-size="7" fill="rgba(255,255,255,.4)" font-family="Inter"></text>
+            <circle cx="130" cy="16"  r="17" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.15)" stroke-width="1"/><text x="130" y="20"  text-anchor="middle" font-size="7" fill="rgba(255,255,255,.4)" font-family="Inter">A.B</text>
+            <circle cx="228" cy="65"  r="17" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.15)" stroke-width="1"/><text x="228" y="69"  text-anchor="middle" font-size="7" fill="rgba(255,255,255,.4)" font-family="Inter">C.M</text>
+            <circle cx="244" cy="175" r="17" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.15)" stroke-width="1"/><text x="244" y="179" text-anchor="middle" font-size="7" fill="rgba(255,255,255,.4)" font-family="Inter">R.D</text>
+            <circle cx="130" cy="244" r="17" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.15)" stroke-width="1"/><text x="130" y="248" text-anchor="middle" font-size="7" fill="rgba(255,255,255,.4)" font-family="Inter">L.W</text>
+            <circle cx="16"  cy="175" r="17" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.15)" stroke-width="1"/><text x="16"  y="179" text-anchor="middle" font-size="7" fill="rgba(255,255,255,.4)" font-family="Inter">M.T</text>
+            <circle cx="32"  cy="65"  r="17" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.15)" stroke-width="1"/><text x="32"  y="69"  text-anchor="middle" font-size="7" fill="rgba(255,255,255,.4)" font-family="Inter">J.E</text>
           </g>
           <g class="orb-gr">
-            <circle cx="130" cy="58"  r="14" fill="rgba(0,113,227,.18)" stroke="rgba(0,113,227,.5)" stroke-width="1"/><text x="130" y="62"  text-anchor="middle" font-size="6" fill="rgba(100,160,255,.8)" font-family="Inter"></text>
-            <circle cx="186" cy="152" r="14" fill="rgba(0,113,227,.18)" stroke="rgba(0,113,227,.5)" stroke-width="1"/><text x="186" y="156" text-anchor="middle" font-size="6" fill="rgba(100,160,255,.8)" font-family="Inter"></text>
-            <circle cx="74"  cy="152" r="14" fill="rgba(0,113,227,.18)" stroke="rgba(0,113,227,.5)" stroke-width="1"/><text x="74"  y="156" text-anchor="middle" font-size="6" fill="rgba(100,160,255,.8)" font-family="Inter">/text>
+            <circle cx="130" cy="58"  r="14" fill="rgba(0,113,227,.18)" stroke="rgba(0,113,227,.5)" stroke-width="1"/><text x="130" y="62"  text-anchor="middle" font-size="6" fill="rgba(100,160,255,.8)" font-family="Inter">T.M</text>
+            <circle cx="186" cy="152" r="14" fill="rgba(0,113,227,.18)" stroke="rgba(0,113,227,.5)" stroke-width="1"/><text x="186" y="156" text-anchor="middle" font-size="6" fill="rgba(100,160,255,.8)" font-family="Inter">S.P</text>
+            <circle cx="74"  cy="152" r="14" fill="rgba(0,113,227,.18)" stroke="rgba(0,113,227,.5)" stroke-width="1"/><text x="74"  y="156" text-anchor="middle" font-size="6" fill="rgba(100,160,255,.8)" font-family="Inter">You</text>
           </g>
         </svg>
         <div class="orbit-center"><div class="oc-n">5s</div><div class="oc-s">of silence</div></div>
