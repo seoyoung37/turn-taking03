@@ -1250,3 +1250,52 @@ nav {
     transform: none;
   }
 }
+
+/* Landing page status chips */
+.chips {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+
+  border: 0.5px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.06);
+
+  z-index: 30;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+
+  padding: 4px 8px;
+  border-radius: 999px;
+
+  font-size: 0.64rem;
+  font-weight: 500;
+  color: #86868b;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.chip + .chip {
+  border-left: 0.5px solid rgba(0, 0, 0, 0.07);
+  border-radius: 0;
+}
+
+.cd {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
