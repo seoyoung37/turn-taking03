@@ -11,7 +11,7 @@ const LIP_THRESHOLD = 0.028;
 const LEAN_THRESHOLD = 1.06;
 const GAZE_THRESHOLD = 0.045;
 
-const ORBIT_SPEED = 0.0025;
+const ORBIT_SPEED = 0.0018;
 const CUE_TOPIC = "inbetween-cue-state";
 
 // ── STATE ─────────────────────────────────────────────
@@ -41,16 +41,21 @@ let mpRunning = false;
 let mpRafId = null;
 let baselineFaceScale = null;
 
-const CUE = { lip: false, lean: false, gaze: false };
+const CUE = {
+  lip: false,
+  gaze: false,
+  lean: false,
+};
 
 let lastCueSentAt = 0;
 let lastCueSignature = "";
+let lastUnmutePulseAt = 0;
 
 // ── DOM HELPERS ───────────────────────────────────────
 const $ = (id) => document.getElementById(id);
 const tilesContainer = () => $("tiles-container");
 
-function showToast(msg, ms = 2000) {
+function showToast(msg, ms = 1800) {
   let t = document.querySelector(".toast");
 
   if (!t) {
@@ -62,7 +67,9 @@ function showToast(msg, ms = 2000) {
   t.textContent = msg;
   t.classList.add("show");
 
-  setTimeout(() => t.classList.remove("show"), ms);
+  setTimeout(() => {
+    t.classList.remove("show");
+  }, ms);
 }
 
 function makeUniqueIdentity(name) {
@@ -90,11 +97,23 @@ function showAudioPrompt() {
   prompt = document.createElement("div");
   prompt.id = "audio-prompt";
   prompt.style.cssText = `
-    position:fixed;bottom:88px;left:50%;transform:translateX(-50%);
-    background:#1d1d1f;color:#fff;border-radius:12px;
-    padding:12px 20px;font-size:.82rem;font-weight:500;
-    cursor:pointer;z-index:200;box-shadow:0 4px 20px rgba(0,0,0,.2);
-    display:flex;align-items:center;gap:8px;white-space:nowrap;
+    position: fixed;
+    bottom: 88px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1d1d1f;
+    color: #fff;
+    border-radius: 12px;
+    padding: 12px 20px;
+    font-size: .82rem;
+    font-weight: 500;
+    cursor: pointer;
+    z-index: 200;
+    box-shadow: 0 4px 20px rgba(0,0,0,.2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
   `;
 
   prompt.innerHTML = `
@@ -109,6 +128,7 @@ function showAudioPrompt() {
     if (livekitRoom && livekitRoom.startAudio) {
       await livekitRoom.startAudio();
     }
+
     prompt.remove();
   };
 
@@ -118,6 +138,7 @@ function showAudioPrompt() {
 // ── URL PARSING ───────────────────────────────────────
 function parseUrl() {
   const p = new URLSearchParams(location.search);
+
   roomName = p.get("room") || "";
   meetingTitle = p.get("title") || roomName;
 
@@ -133,11 +154,15 @@ function parseUrl() {
 // ── MODAL ─────────────────────────────────────────────
 function openJoinModal() {
   const overlay = $("modal-overlay");
+  if (!overlay) return;
+
   overlay.classList.add("open");
 
   setTimeout(() => {
     const saved = localStorage.getItem("ib-username");
     const nameInput = $("input-name");
+
+    if (!nameInput) return;
 
     if (saved) nameInput.value = saved;
 
@@ -147,18 +172,26 @@ function openJoinModal() {
 }
 
 function closeJoinModal(e) {
-  if (e && e.target !== $("modal-overlay")) return;
+  const overlay = $("modal-overlay");
+  if (!overlay) return;
 
-  $("modal-overlay").classList.remove("open");
-  $("join-error").textContent = "";
+  if (e && e.target !== overlay) return;
+
+  overlay.classList.remove("open");
+
+  if ($("join-error")) {
+    $("join-error").textContent = "";
+  }
 }
 
 // ── JOIN FLOW ─────────────────────────────────────────
 async function handleJoin() {
-  const name = $("input-name").value.trim();
-  const room = $("input-room").value.trim();
+  const name = $("input-name")?.value.trim();
+  const room = $("input-room")?.value.trim();
 
-  $("join-error").textContent = "";
+  if ($("join-error")) {
+    $("join-error").textContent = "";
+  }
 
   if (!name) {
     $("join-error").textContent = "Please enter your name.";
@@ -171,8 +204,11 @@ async function handleJoin() {
   }
 
   const btn = $("btn-join");
-  btn.textContent = "Connecting…";
-  btn.disabled = true;
+
+  if (btn) {
+    btn.textContent = "Connecting…";
+    btn.disabled = true;
+  }
 
   try {
     localStorage.setItem("ib-username", name);
@@ -181,11 +217,13 @@ async function handleJoin() {
 
     localIdentity = uniqueIdentity;
     roomName = room;
-    meetingTitle = $("input-room").value.trim();
+    meetingTitle = room;
 
     const res = await fetch("/api/token", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
         room,
         username: name,
@@ -202,9 +240,9 @@ async function handleJoin() {
 
     await connectToRoom(url, token);
 
-    $("join-screen").style.display = "none";
-    $("meeting-screen").style.display = "flex";
-    $("meeting-name").textContent = meetingTitle || room;
+    if ($("join-screen")) $("join-screen").style.display = "none";
+    if ($("meeting-screen")) $("meeting-screen").style.display = "flex";
+    if ($("meeting-name")) $("meeting-name").textContent = meetingTitle || room;
 
     history.replaceState(
       {},
@@ -214,9 +252,14 @@ async function handleJoin() {
       )}`
     );
   } catch (err) {
-    $("join-error").textContent = err.message || "Failed to connect.";
-    btn.textContent = "Join a Meeting";
-    btn.disabled = false;
+    if ($("join-error")) {
+      $("join-error").textContent = err.message || "Failed to connect.";
+    }
+
+    if (btn) {
+      btn.textContent = "Join a Meeting";
+      btn.disabled = false;
+    }
   }
 }
 
@@ -224,17 +267,19 @@ document.addEventListener("DOMContentLoaded", () => {
   parseUrl();
 
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") $("modal-overlay").classList.remove("open");
+    if (e.key === "Escape" && $("modal-overlay")) {
+      $("modal-overlay").classList.remove("open");
+    }
   });
 
   ["input-name", "input-room"].forEach((id) => {
     const el = $(id);
 
-    if (el) {
-      el.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") handleJoin();
-      });
-    }
+    if (!el) return;
+
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") handleJoin();
+    });
   });
 });
 
@@ -263,7 +308,9 @@ async function connectToRoom(wsUrl, token) {
     }
   });
 
-  await livekitRoom.connect(wsUrl, token, { autoSubscribe: true });
+  await livekitRoom.connect(wsUrl, token, {
+    autoSubscribe: true,
+  });
 
   localIdentity = livekitRoom.localParticipant.identity;
 
@@ -328,7 +375,6 @@ function onTrackSubscribed(track, pub, participant) {
   if (track.kind === Track.Kind.Video) {
     const el = track.attach();
     el.className = "tile-video";
-
     attachVideoElementToTile(data, el, false);
   }
 
@@ -451,6 +497,10 @@ function onDataReceived(payload, participant, kind, topic) {
     const data = pMap.get(participant.identity);
     if (!data || data.isLocal) return;
 
+    if (message.pulse) {
+      triggerCenterPulse(data, message.pulseId || Date.now());
+    }
+
     applyRemoteCues(participant.identity, message);
   } catch (error) {
     console.warn("Failed to parse cue data:", error);
@@ -470,11 +520,6 @@ function createTile(identity, displayName, isLocal) {
   const tile = document.createElement("div");
   tile.className = "tile";
   tile.dataset.identity = identity;
-
-  /*
-    기본 비율.
-    실제 video metadata가 로드되면 --tile-ar가 실제 비율로 업데이트됨.
-  */
   tile.style.setProperty("--tile-ar", "16 / 9");
 
   const vWrap = document.createElement("div");
@@ -545,12 +590,18 @@ function createTile(identity, displayName, isLocal) {
     isMuted: false,
     isCamOff: false,
     isLocal,
+    lastPulseId: null,
+    pulseTimer: null,
   });
 }
 
 function removeTile(identity) {
   const data = pMap.get(identity);
   if (!data) return;
+
+  if (data.pulseTimer) {
+    clearTimeout(data.pulseTimer);
+  }
 
   data.tile.remove();
   pMap.delete(identity);
@@ -581,11 +632,6 @@ function lockInitialAspectRatio(tile, videoEl) {
 
   const applyAspect = () => {
     if (!videoEl.videoWidth || !videoEl.videoHeight) return;
-
-    /*
-      이미 한 번 aspect를 잡았다면 계속 유지.
-      화면 효과가 나타나도 tile 비율이 다시 바뀌지 않음.
-    */
     if (tile.dataset.aspectLocked === "true") return;
 
     tile.style.setProperty(
@@ -600,7 +646,9 @@ function lockInitialAspectRatio(tile, videoEl) {
     applyAspect();
   }
 
-  videoEl.addEventListener("loadedmetadata", applyAspect, { once: true });
+  videoEl.addEventListener("loadedmetadata", applyAspect, {
+    once: true,
+  });
 }
 
 function attachLocalVideo() {
@@ -618,7 +666,9 @@ function attachLocalVideo() {
   }
 
   lp.trackPublications.forEach((pub) => doAttach(pub));
-  lp.on(LivekitClient.ParticipantEvent.LocalTrackPublished, (pub) => doAttach(pub));
+  lp.on(LivekitClient.ParticipantEvent.LocalTrackPublished, (pub) =>
+    doAttach(pub)
+  );
 }
 
 // ── TILE STATE HELPERS ────────────────────────────────
@@ -647,8 +697,11 @@ function updateGridClass() {
 
   if (isCircleMode) return;
 
-  let cls = "n" + n;
-  if (n > 12) cls = "nmax";
+  let cls = `n${n}`;
+
+  if (n > 12) {
+    cls = "nmax";
+  }
 
   tc.classList.add(cls);
 
@@ -659,12 +712,14 @@ function updateGridClass() {
 
 // ── LAYOUT MODE ───────────────────────────────────────
 function setLayoutMode(mode) {
-  $("mode-grid").classList.toggle("sel", mode === "grid");
-  $("mode-circle-btn").classList.toggle("sel", mode === "circle");
+  $("mode-grid")?.classList.toggle("sel", mode === "grid");
+  $("mode-circle-btn")?.classList.toggle("sel", mode === "circle");
 
   if (mode === "circle" && !isCircleMode) {
     enterCircleMode();
-  } else if (mode === "grid" && isCircleMode) {
+  }
+
+  if (mode === "grid" && isCircleMode) {
     exitCircleMode();
   }
 }
@@ -692,15 +747,8 @@ function setSpeaker(identity) {
     const data = pMap.get(identity);
 
     if (data) {
-      data.tile.classList.add("speaker");
-      data.tile.classList.remove(
-        "held-speaker",
-        "mouth-open",
-        "leaning",
-        "gaze-pull",
-        "pre-lean",
-        "pre-gaze"
-      );
+      data.tile.classList.add("speaker", "center-expand");
+      data.tile.classList.remove("held-speaker");
       data.speakerRing.style.display = "block";
     }
 
@@ -718,6 +766,12 @@ function clearHeld() {
   if (data) {
     data.tile.classList.remove("held-speaker", "speaker");
     data.speakerRing.style.display = "none";
+
+    if (!data.tile.classList.contains("pre-lean") &&
+        !data.tile.classList.contains("pre-gaze") &&
+        !data.tile.classList.contains("expand-pulse")) {
+      data.tile.classList.remove("center-expand");
+    }
   }
 
   heldSpeaker = null;
@@ -741,6 +795,7 @@ function enterCircleMode() {
   isCircleMode = true;
 
   const tc = tilesContainer();
+
   tc.classList.remove(
     "n1",
     "n2",
@@ -756,6 +811,7 @@ function enterCircleMode() {
     "n12",
     "nmax"
   );
+
   tc.classList.add("circle-mode");
 
   pMap.forEach(({ tile }) => {
@@ -763,10 +819,12 @@ function enterCircleMode() {
       "speaker",
       "held-speaker",
       "mouth-open",
-      "leaning",
-      "gaze-pull",
       "pre-lean",
-      "pre-gaze"
+      "pre-gaze",
+      "center-expand",
+      "expand-pulse",
+      "outer-ring",
+      "inner-ring"
     );
   });
 
@@ -780,8 +838,8 @@ function enterCircleMode() {
 
   orbit();
 
-  $("mode-circle-btn").classList.add("sel");
-  $("mode-grid").classList.remove("sel");
+  $("mode-circle-btn")?.classList.add("sel");
+  $("mode-grid")?.classList.remove("sel");
 }
 
 function exitCircleMode() {
@@ -801,13 +859,13 @@ function exitCircleMode() {
 
   pMap.forEach(({ tile }) => {
     clearCircleInlineLayout(tile);
-    tile.classList.remove("speaker-circle");
+    tile.classList.remove("speaker-circle", "outer-ring", "inner-ring");
   });
 
   updateGridClass();
 
-  $("mode-grid").classList.add("sel");
-  $("mode-circle-btn").classList.remove("sel");
+  $("mode-grid")?.classList.add("sel");
+  $("mode-circle-btn")?.classList.remove("sel");
 }
 
 function clearCircleInlineLayout(tile) {
@@ -816,6 +874,93 @@ function clearCircleInlineLayout(tile) {
   tile.style.removeProperty("top");
   tile.style.removeProperty("width");
   tile.style.removeProperty("height");
+  tile.style.removeProperty("--circle-size");
+}
+
+function getEffectiveSpeakingMs(data) {
+  if (!data) return 0;
+
+  let value = data.speakingMs || 0;
+
+  if (data.isSpeaking && data.speakingStart) {
+    value += Date.now() - data.speakingStart;
+  }
+
+  return value;
+}
+
+function chooseCircleGeometry(n, W, H) {
+  const outerCount = Math.ceil(n / 2);
+  const innerCount = n - outerCount;
+
+  const safeX = 64;
+  const safeY = 52;
+
+  const usableW = Math.max(320, W - safeX * 2);
+  const usableH = Math.max(260, H - safeY * 2);
+
+  const maxOuterRadius = Math.min(usableW, usableH) / 2;
+
+  const gap = 18;
+
+  for (let size = Math.min(150, Math.max(82, Math.min(W, H) * 0.17)); size >= 54; size -= 2) {
+    const outerSize = size;
+    const innerSize = Math.max(48, size * 0.78);
+
+    const outerRadius = maxOuterRadius - outerSize / 2;
+
+    if (outerRadius <= outerSize) continue;
+
+    const outerChord =
+      outerCount <= 1
+        ? Infinity
+        : 2 * outerRadius * Math.sin(Math.PI / outerCount);
+
+    if (outerChord < outerSize + gap) continue;
+
+    if (innerCount === 0) {
+      return {
+        outerSize,
+        innerSize,
+        outerRadius,
+        innerRadius: 0,
+        gap,
+      };
+    }
+
+    const minInnerRadius =
+      innerCount <= 1
+        ? 0
+        : (innerSize + gap) / (2 * Math.sin(Math.PI / innerCount));
+
+    const maxInnerRadius =
+      outerRadius - (outerSize + innerSize) / 2 - gap;
+
+    if (minInnerRadius <= maxInnerRadius) {
+      const innerRadius =
+        innerCount <= 1
+          ? Math.max(0, Math.min(maxInnerRadius, outerRadius * 0.42))
+          : Math.min(maxInnerRadius, Math.max(minInnerRadius, outerRadius * 0.48));
+
+      return {
+        outerSize,
+        innerSize,
+        outerRadius,
+        innerRadius,
+        gap,
+      };
+    }
+  }
+
+  const fallbackSize = 48;
+
+  return {
+    outerSize: fallbackSize,
+    innerSize: fallbackSize * 0.78,
+    outerRadius: Math.min(usableW, usableH) * 0.38,
+    innerRadius: Math.min(usableW, usableH) * 0.18,
+    gap,
+  };
 }
 
 function layoutCircleTiles() {
@@ -823,60 +968,81 @@ function layoutCircleTiles() {
 
   const W = tc.clientWidth;
   const H = tc.clientHeight;
-  const cx = W / 2;
-  const cy = H / 2;
 
   const allData = [...pMap.values()];
   const n = allData.length;
 
   if (n === 0) return;
 
-  const sorted = [...allData].sort((a, b) => b.speakingMs - a.speakingMs);
+  const cx = W / 2;
+  const cy = H / 2;
+
+  const sorted = [...allData].sort(
+    (a, b) => getEffectiveSpeakingMs(b) - getEffectiveSpeakingMs(a)
+  );
 
   const outerCount = Math.ceil(n / 2);
   const outerGroup = sorted.slice(0, outerCount);
   const innerGroup = sorted.slice(outerCount);
 
-  const maxTile = Math.min(W, H) * 0.22;
-  const tileSize = Math.min(maxTile, 140);
+  const geometry = chooseCircleGeometry(n, W, H);
 
-  const outerR = Math.min(W, H) * 0.33;
-  const innerR = Math.max(tileSize * 1.1, outerR * 0.5);
-
-  outerGroup.forEach((data, i) => {
-    const angle = (i / outerCount) * Math.PI * 2 + orbitAngle;
-
-    placeTile(
-      data.tile,
-      cx + Math.cos(angle) * outerR - tileSize / 2,
-      cy + Math.sin(angle) * outerR - tileSize / 2,
-      tileSize
-    );
+  placeCircleGroup({
+    group: outerGroup,
+    cx,
+    cy,
+    radius: geometry.outerRadius,
+    size: geometry.outerSize,
+    startAngle: -Math.PI / 2 + orbitAngle,
+    className: "outer-ring",
   });
 
-  const innerOffset = outerCount > 0 ? Math.PI / outerCount : 0;
-
-  innerGroup.forEach((data, i) => {
-    const angle =
-      (i / Math.max(innerGroup.length, 1)) * Math.PI * 2 +
+  placeCircleGroup({
+    group: innerGroup,
+    cx,
+    cy,
+    radius: geometry.innerRadius,
+    size: geometry.innerSize,
+    startAngle:
+      -Math.PI / 2 +
       orbitAngle +
-      innerOffset;
-
-    placeTile(
-      data.tile,
-      cx + Math.cos(angle) * innerR - tileSize / 2,
-      cy + Math.sin(angle) * innerR - tileSize / 2,
-      tileSize
-    );
+      Math.PI / Math.max(innerGroup.length, 1),
+    className: "inner-ring",
   });
 }
 
-function placeTile(tile, x, y, size) {
-  tile.style.position = "absolute";
-  tile.style.left = `${Math.round(x)}px`;
-  tile.style.top = `${Math.round(y)}px`;
-  tile.style.width = `${Math.round(size)}px`;
-  tile.style.height = `${Math.round(size)}px`;
+function placeCircleGroup({
+  group,
+  cx,
+  cy,
+  radius,
+  size,
+  startAngle,
+  className,
+}) {
+  if (!group.length) return;
+
+  group.forEach((data, i) => {
+    const tile = data.tile;
+
+    const angle =
+      group.length === 1
+        ? startAngle
+        : startAngle + (Math.PI * 2 * i) / group.length;
+
+    const x = cx + Math.cos(angle) * radius - size / 2;
+    const y = cy + Math.sin(angle) * radius - size / 2;
+
+    tile.style.position = "absolute";
+    tile.style.left = `${Math.round(x)}px`;
+    tile.style.top = `${Math.round(y)}px`;
+    tile.style.width = `${Math.round(size)}px`;
+    tile.style.height = `${Math.round(size)}px`;
+    tile.style.setProperty("--circle-size", `${Math.round(size)}px`);
+
+    tile.classList.remove("outer-ring", "inner-ring");
+    tile.classList.add(className);
+  });
 }
 
 // ── LOCAL AUDIO ANALYSIS ──────────────────────────────
@@ -949,6 +1115,7 @@ function startLocalAudioAnalysis() {
   }
 
   lp.trackPublications.forEach((pub) => trySetup(pub));
+
   lp.on(LivekitClient.ParticipantEvent.LocalTrackPublished, (pub) =>
     trySetup(pub)
   );
@@ -963,6 +1130,7 @@ async function initMediaPipe() {
       visionModule = await import(
         "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm"
       );
+
       console.log("[InBetween] MediaPipe module loaded from jsDelivr.");
     } catch (cdnError) {
       console.warn(
@@ -973,6 +1141,7 @@ async function initMediaPipe() {
       visionModule = await import(
         "https://esm.sh/@mediapipe/tasks-vision@0.10.3"
       );
+
       console.log("[InBetween] MediaPipe module loaded from esm.sh.");
     }
 
@@ -1003,6 +1172,7 @@ async function initMediaPipe() {
         "[InBetween] GPU failed. Retrying FaceLandmarker with CPU.",
         gpuError
       );
+
       faceLandmarker = await createLandmarker("CPU");
       console.log("[InBetween] FaceLandmarker ready with CPU.");
     }
@@ -1052,17 +1222,6 @@ function runFaceDetection() {
     const lipOpen = detectLipOpen(lm, bs);
     const leaning = detectLeaning(lm);
     const gazing = detectGazing(lm);
-
-    if (Math.random() < 0.03) {
-      console.log("[cue raw]", {
-        lipOpen,
-        gazing,
-        leaning,
-        currentSpeaker,
-        heldSpeaker,
-        localIdentity,
-      });
-    }
 
     updateCueState(lipOpen, leaning, gazing, data);
   } else {
@@ -1167,29 +1326,21 @@ function detectGazing(landmarks) {
   return pitch > -0.12;
 }
 
+// ── CUE STATE / CENTER EXPAND ─────────────────────────
 function updateCueState(lipOpen, leaning, gazing, data) {
-  const cueSpeaker = getCueSpeakerId();
-
   updateCueDots(data, lipOpen, gazing, leaning);
 
   CUE.lip = lipOpen;
   CUE.lean = leaning;
   CUE.gaze = gazing;
 
-  if (currentSpeaker === localIdentity) {
-    applyCueVisual(data, {
-      lip: false,
-      lean: false,
-      gaze: false,
-      speakerId: cueSpeaker,
-    });
-
-    publishCueState(false, false, false, cueSpeaker);
-    return;
-  }
-
+  /*
+    중요:
+    이제 local user가 speaker여도 effect를 끄지 않음.
+    그래서 내 화면에서도 내 lip+gaze / lip+lean 효과가 보임.
+  */
   applyLocalCues(lipOpen, leaning, gazing, data);
-  publishCueState(lipOpen, leaning, gazing, cueSpeaker);
+  publishCueState(lipOpen, leaning, gazing, getCueSpeakerId());
 }
 
 function updateCueDots(data, lip, gaze, lean) {
@@ -1223,51 +1374,43 @@ function applyRemoteCues(identity, message) {
   });
 }
 
+function clearCueClasses(tile) {
+  tile.classList.remove(
+    "mouth-open",
+    "pre-lean",
+    "pre-gaze"
+  );
+
+  tile.style.removeProperty("--cue-pull-x");
+  tile.style.removeProperty("--cue-pull-y");
+}
+
+function shouldKeepExpanded(tile) {
+  return (
+    tile.classList.contains("speaker") ||
+    tile.classList.contains("pre-lean") ||
+    tile.classList.contains("pre-gaze") ||
+    tile.classList.contains("expand-pulse")
+  );
+}
+
 function applyCueVisual(data, cue) {
   const tile = data.tile;
   if (!tile) return;
 
   const speakerId = cue.speakerId || getCueSpeakerId();
 
-  tile.classList.remove(
-    "mouth-open",
-    "leaning",
-    "gaze-pull",
-    "pre-lean",
-    "pre-gaze"
-  );
-
-  tile.style.removeProperty("--pull-x");
-  tile.style.removeProperty("--pull-y");
-  tile.style.removeProperty("--cue-pull-x");
-  tile.style.removeProperty("--cue-pull-y");
-  tile.style.removeProperty("transform-origin");
-
-  if (data.tile.dataset.identity === speakerId) {
-    return;
-  }
+  clearCueClasses(tile);
 
   if (cue.lip) {
     tile.classList.add("mouth-open");
   }
 
-  /*
-    B. Open mouth + Leaning Forward
-    더 강한 turn-taking cue.
-    크기를 키우지 않고 하단이 먼저 살짝 들리는 느낌만 줌.
-  */
   if (cue.lip && cue.lean) {
-    requestAnimationFrame(() => {
-      tile.classList.add("pre-lean");
-    });
-
+    tile.classList.add("pre-lean", "center-expand");
     return;
   }
 
-  /*
-    A. Open mouth + Gazing Speaker
-    speaker 방향으로 살짝 당겨지고 부풀어 오르는 cue.
-  */
   if (cue.lip && cue.gaze && speakerId) {
     const speakerData = pMap.get(speakerId);
 
@@ -1280,26 +1423,50 @@ function applyCueVisual(data, cue) {
 
       const len = Math.hypot(dx, dy) || 1;
 
-      const nx = Math.max(-1, Math.min(1, dx / len));
-      const ny = Math.max(-1, Math.min(1, dy / len));
-
-      tile.style.setProperty("--cue-pull-x", nx.toFixed(4));
-      tile.style.setProperty("--cue-pull-y", ny.toFixed(4));
-
-      requestAnimationFrame(() => {
-        tile.classList.add("pre-gaze");
-      });
+      tile.style.setProperty("--cue-pull-x", (dx / len).toFixed(4));
+      tile.style.setProperty("--cue-pull-y", (dy / len).toFixed(4));
     }
+
+    tile.classList.add("pre-gaze", "center-expand");
+    return;
+  }
+
+  if (!shouldKeepExpanded(tile)) {
+    tile.classList.remove("center-expand");
   }
 }
 
-function publishCueState(lip, lean, gaze, speakerId) {
+function triggerCenterPulse(data, pulseId) {
+  if (!data || !data.tile) return;
+
+  if (data.lastPulseId === pulseId) return;
+  data.lastPulseId = pulseId;
+
+  const tile = data.tile;
+
+  tile.classList.add("center-expand", "expand-pulse");
+
+  if (data.pulseTimer) {
+    clearTimeout(data.pulseTimer);
+  }
+
+  data.pulseTimer = setTimeout(() => {
+    tile.classList.remove("expand-pulse");
+
+    if (!shouldKeepExpanded(tile)) {
+      tile.classList.remove("center-expand");
+    }
+  }, 1050);
+}
+
+function publishCueState(lip, lean, gaze, speakerId, extra = {}) {
   if (!livekitRoom || !livekitRoom.localParticipant) return;
 
   const now = Date.now();
-  const signature = `${lip}-${lean}-${gaze}-${speakerId || ""}`;
 
-  if (signature === lastCueSignature && now - lastCueSentAt < 220) {
+  const signature = `${lip}-${lean}-${gaze}-${speakerId || ""}-${extra.pulseId || ""}`;
+
+  if (!extra.pulse && signature === lastCueSignature && now - lastCueSentAt < 220) {
     return;
   }
 
@@ -1312,6 +1479,7 @@ function publishCueState(lip, lean, gaze, speakerId) {
     lean: Boolean(lean),
     gaze: Boolean(gaze),
     speakerId: speakerId || null,
+    ...extra,
   };
 
   try {
@@ -1339,29 +1507,52 @@ async function toggleMic() {
   const icon = $("mic-icon");
   const label = $("mic-label");
 
-  icon.className = "ctrl-icon" + (micEnabled ? " on" : "");
+  if (icon) icon.className = "ctrl-icon" + (micEnabled ? " on" : "");
 
   if (micEnabled) {
-    icon.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <rect x="5" y="1" width="6" height="9" rx="3" stroke="white" stroke-width="1.3"/>
-        <path d="M2.5 8.5C2.5 11.5 5 14 8 14s5.5-2.5 5.5-5.5" stroke="white" stroke-width="1.3" stroke-linecap="round"/>
-        <line x1="8" y1="14" x2="8" y2="15.5" stroke="white" stroke-width="1.3" stroke-linecap="round"/>
-      </svg>
-    `;
-    label.textContent = "Mic";
+    if (icon) {
+      icon.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <rect x="5" y="1" width="6" height="9" rx="3" stroke="white" stroke-width="1.3"/>
+          <path d="M2.5 8.5C2.5 11.5 5 14 8 14s5.5-2.5 5.5-5.5" stroke="white" stroke-width="1.3" stroke-linecap="round"/>
+          <line x1="8" y1="14" x2="8" y2="15.5" stroke="white" stroke-width="1.3" stroke-linecap="round"/>
+        </svg>
+      `;
+    }
+
+    if (label) label.textContent = "Mic";
+
+    const localData = pMap.get(localIdentity);
+
+    if (localData) {
+      const pulseId = Date.now();
+
+      lastUnmutePulseAt = pulseId;
+      triggerCenterPulse(localData, pulseId);
+
+      publishCueState(CUE.lip, CUE.lean, CUE.gaze, getCueSpeakerId(), {
+        pulse: true,
+        pulseId,
+      });
+    }
   } else {
-    icon.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <rect x="5" y="1" width="6" height="9" rx="3" stroke="#86868b" stroke-width="1.3"/>
-        <line x1="2" y1="2" x2="14" y2="14" stroke="#86868b" stroke-width="1.4" stroke-linecap="round"/>
-      </svg>
-    `;
-    label.textContent = "Muted";
+    if (icon) {
+      icon.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <rect x="5" y="1" width="6" height="9" rx="3" stroke="#86868b" stroke-width="1.3"/>
+          <line x1="2" y1="2" x2="14" y2="14" stroke="#86868b" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+      `;
+    }
+
+    if (label) label.textContent = "Muted";
   }
 
   const localData = pMap.get(localIdentity);
-  if (localData) showMuteBadge(localData, !micEnabled);
+  if (localData) {
+    localData.isMuted = !micEnabled;
+    showMuteBadge(localData, !micEnabled);
+  }
 }
 
 async function toggleCamera() {
@@ -1372,24 +1563,30 @@ async function toggleCamera() {
   const icon = $("cam-icon");
   const label = $("cam-label");
 
-  icon.className = "ctrl-icon" + (camEnabled ? " on" : "");
+  if (icon) icon.className = "ctrl-icon" + (camEnabled ? " on" : "");
 
   if (camEnabled) {
-    icon.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <rect x="1" y="4" width="10" height="8" rx="2" stroke="white" stroke-width="1.3"/>
-        <path d="M11 7.5L15 5v6l-4-2.5" stroke="white" stroke-width="1.3" stroke-linejoin="round"/>
-      </svg>
-    `;
-    label.textContent = "Video";
+    if (icon) {
+      icon.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <rect x="1" y="4" width="10" height="8" rx="2" stroke="white" stroke-width="1.3"/>
+          <path d="M11 7.5L15 5v6l-4-2.5" stroke="white" stroke-width="1.3" stroke-linejoin="round"/>
+        </svg>
+      `;
+    }
+
+    if (label) label.textContent = "Video";
   } else {
-    icon.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <rect x="1" y="4" width="10" height="8" rx="2" stroke="#86868b" stroke-width="1.3"/>
-        <line x1="2" y1="2" x2="14" y2="14" stroke="#86868b" stroke-width="1.4" stroke-linecap="round"/>
-      </svg>
-    `;
-    label.textContent = "Cam off";
+    if (icon) {
+      icon.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <rect x="1" y="4" width="10" height="8" rx="2" stroke="#86868b" stroke-width="1.3"/>
+          <line x1="2" y1="2" x2="14" y2="14" stroke="#86868b" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+      `;
+    }
+
+    if (label) label.textContent = "Cam off";
   }
 
   const localData = pMap.get(localIdentity);
@@ -1405,28 +1602,34 @@ function toggleCircleFeature() {
   const icon = $("circle-icon");
 
   if (circleModeFeature) {
-    icon.className = "ctrl-icon circle-active";
-    icon.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <circle cx="8" cy="8" r="6.5" stroke="white" stroke-width="1.3"/>
-        <circle cx="8" cy="2.8" r="1.6" fill="white"/>
-        <circle cx="13.2" cy="11" r="1.4" fill="white"/>
-        <circle cx="2.8" cy="11" r="1.4" fill="white"/>
-      </svg>
-    `;
+    if (icon) {
+      icon.className = "ctrl-icon circle-active";
+      icon.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="8" r="6.5" stroke="white" stroke-width="1.3"/>
+          <circle cx="8" cy="2.8" r="1.6" fill="white"/>
+          <circle cx="13.2" cy="11" r="1.4" fill="white"/>
+          <circle cx="2.8" cy="11" r="1.4" fill="white"/>
+        </svg>
+      `;
+    }
+
     showToast("Circle mode on");
   } else {
     if (isCircleMode) exitCircleMode();
 
-    icon.className = "ctrl-icon";
-    icon.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <circle cx="8" cy="8" r="6.5" stroke="#1d1d1f" stroke-width="1.3"/>
-        <circle cx="8" cy="2.8" r="1.6" fill="#1d1d1f"/>
-        <circle cx="13.2" cy="11" r="1.4" fill="#1d1d1f"/>
-        <circle cx="2.8" cy="11" r="1.4" fill="#1d1d1f"/>
-      </svg>
-    `;
+    if (icon) {
+      icon.className = "ctrl-icon";
+      icon.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="8" r="6.5" stroke="#1d1d1f" stroke-width="1.3"/>
+          <circle cx="8" cy="2.8" r="1.6" fill="#1d1d1f"/>
+          <circle cx="13.2" cy="11" r="1.4" fill="#1d1d1f"/>
+          <circle cx="2.8" cy="11" r="1.4" fill="#1d1d1f"/>
+        </svg>
+      `;
+    }
+
     showToast("Circle mode off");
   }
 }
@@ -1480,3 +1683,14 @@ function copyInvite() {
     showToast("Invite link copied!");
   });
 }
+
+// expose functions for inline onclick in index.html
+window.openJoinModal = openJoinModal;
+window.closeJoinModal = closeJoinModal;
+window.handleJoin = handleJoin;
+window.setLayoutMode = setLayoutMode;
+window.toggleMic = toggleMic;
+window.toggleCamera = toggleCamera;
+window.toggleCircleFeature = toggleCircleFeature;
+window.leaveRoom = leaveRoom;
+window.copyInvite = copyInvite;
