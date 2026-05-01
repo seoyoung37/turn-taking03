@@ -1253,3 +1253,143 @@ nav {
     height: 36px;
   }
 }
+
+/* ═══════════════════════════ NAME FIXED / VIDEO ONLY FOLDS ═══ */
+
+/*
+  핵심:
+  .tile 전체를 접지 않고,
+  .video-wrap만 flat / cue / open 상태로 접고 펼침.
+  그래서 .tile-name은 항상 펼쳐진 사각형 기준 bottom-left 위치에 고정됨.
+*/
+
+.tile {
+  clip-path: none !important;
+  transform: none !important;
+  overflow: visible !important;
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+/* 비디오 면만 접히는 실제 surface */
+.tile .video-wrap {
+  border-radius: var(--r-tile);
+  border: 1.5px solid transparent;
+  background: var(--g1);
+  overflow: hidden;
+
+  clip-path: var(--flat-clip);
+  transform: perspective(900px) rotateX(62deg);
+  transform-origin: center center;
+
+  transition:
+    clip-path 0.48s cubic-bezier(0.18, 0.92, 0.2, 1),
+    transform 0.48s cubic-bezier(0.18, 0.92, 0.2, 1),
+    border-color 0.26s ease,
+    box-shadow 0.26s ease,
+    background 0.26s ease;
+
+  will-change: transform, clip-path;
+}
+
+/* cue 상태: 입 주변만 열림 */
+.tile.center-expand .video-wrap {
+  clip-path: var(--cue-clip);
+  transform: perspective(900px) rotateX(0deg);
+}
+
+/* speaker 상태: 전체 화면 열림 */
+.tile.speaker .video-wrap {
+  clip-path: var(--open-clip);
+  transform: perspective(900px) rotateX(0deg);
+  border-color: var(--blue);
+  background: #fff;
+  box-shadow: none;
+}
+
+/* held speaker도 전체 열린 상태 */
+.tile.held-speaker .video-wrap {
+  clip-path: var(--open-clip);
+  transform: perspective(900px) rotateX(0deg);
+  border-color: rgba(0, 113, 227, 0.24);
+  background: #fff;
+  box-shadow: none;
+}
+
+/* lip + gaze */
+.tile.pre-gaze .video-wrap {
+  border-color: rgba(168, 190, 238, 0.52);
+}
+
+.tile.pre-gaze.center-expand .video-wrap {
+  transform:
+    translate(
+      calc(var(--cue-pull-x, 0) * 6px),
+      calc(var(--cue-pull-y, 0) * 6px)
+    )
+    perspective(900px)
+    rotateX(0deg);
+}
+
+/* lip + leaning */
+.tile.pre-lean .video-wrap {
+  border-color: rgba(29, 29, 31, 0.42);
+}
+
+.tile.pre-lean.center-expand .video-wrap {
+  transform:
+    perspective(900px)
+    rotateX(0deg)
+    translateY(-3px);
+}
+
+/* 이름은 항상 펼쳐진 사각형 기준 위치에 고정 */
+.tile-name {
+  position: absolute;
+  left: 10px !important;
+  bottom: 10px !important;
+  top: auto !important;
+  transform: none !important;
+  z-index: 20;
+}
+
+/* speaker일 때 이름 색상 유지 */
+.tile.speaker .tile-name {
+  background: var(--blue);
+  color: #fff;
+}
+
+/* flat 상태에서도 이름이 잘리지 않게 */
+.tile:not(.speaker) .tile-name {
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--black);
+}
+
+/* cue dots도 이름처럼 타일 바깥 기준 위치 유지 */
+.cue-dots {
+  z-index: 21;
+}
+
+/* circle mode에서는 다시 원형 비디오로 */
+.circle-mode .tile {
+  border-radius: 50% !important;
+  overflow: visible !important;
+  transform: none !important;
+  clip-path: none !important;
+}
+
+.circle-mode .tile .video-wrap {
+  border-radius: 50% !important;
+  clip-path: inset(0 0 0 0 round 50%) !important;
+  transform: none !important;
+  border-color: transparent !important;
+}
+
+.circle-mode .tile-name {
+  top: auto !important;
+  bottom: 6% !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  font-size: 0.52rem;
+  padding: 2px 8px;
+}
