@@ -414,6 +414,14 @@ function onTrackMuted(pub, participant) {
   if (pub.kind === Track.Kind.Audio) {
     data.isMuted = true;
     showMuteBadge(data, true);
+
+    applyCueVisual(data, {
+      lip: false,
+      lean: false,
+      gaze: false,
+      speakerId: getCueSpeakerId(),
+      muted: true,
+    });
   }
 
   if (pub.kind === Track.Kind.Video) {
@@ -430,6 +438,9 @@ function onTrackUnmuted(pub, participant) {
   if (pub.kind === Track.Kind.Audio) {
     data.isMuted = false;
     showMuteBadge(data, false);
+
+    const pulseId = `unmute-${participant.identity}-${Date.now()}`;
+    triggerCenterPulse(data, pulseId);
   }
 
   if (pub.kind === Track.Kind.Video) {
@@ -496,6 +507,17 @@ function onDataReceived(payload, participant, kind, topic) {
 
     const data = pMap.get(participant.identity);
     if (!data || data.isLocal) return;
+
+    if (message.muted) {
+      applyCueVisual(data, {
+        lip: false,
+        lean: false,
+        gaze: false,
+        muted: true,
+        speakerId: message.speakerId || getCueSpeakerId(),
+      });
+      return;
+    }
 
     if (message.pulse) {
       triggerCenterPulse(data, message.pulseId || Date.now());
@@ -747,7 +769,7 @@ function setSpeaker(identity) {
     const data = pMap.get(identity);
 
     if (data) {
-      data.tile.classList.add("speaker", "center-expand");
+      data.tile.classList.add("speaker");
       data.tile.classList.remove("held-speaker");
       data.speakerRing.style.display = "block";
     }
@@ -767,9 +789,11 @@ function clearHeld() {
     data.tile.classList.remove("held-speaker", "speaker");
     data.speakerRing.style.display = "none";
 
-    if (!data.tile.classList.contains("pre-lean") &&
-        !data.tile.classList.contains("pre-gaze") &&
-        !data.tile.classList.contains("expand-pulse")) {
+    if (
+      !data.tile.classList.contains("pre-lean") &&
+      !data.tile.classList.contains("pre-gaze") &&
+      !data.tile.classList.contains("expand-pulse")
+    ) {
       data.tile.classList.remove("center-expand");
     }
   }
@@ -903,7 +927,11 @@ function chooseCircleGeometry(n, W, H) {
 
   const gap = 18;
 
-  for (let size = Math.min(150, Math.max(82, Math.min(W, H) * 0.17)); size >= 54; size -= 2) {
+  for (
+    let size = Math.min(150, Math.max(82, Math.min(W, H) * 0.17));
+    size >= 54;
+    size -= 2
+  ) {
     const outerSize = size;
     const innerSize = Math.max(48, size * 0.78);
 
@@ -1328,19 +1356,40 @@ function detectGazing(landmarks) {
 
 // ── CUE STATE / CENTER EXPAND ─────────────────────────
 function updateCueState(lipOpen, leaning, gazing, data) {
+  const isMuted = !micEnabled || data?.isMuted;
+
+  if (isMuted) {
+    updateCueDots(data, false, false, false);
+
+    CUE.lip = false;
+    CUE.lean = false;
+    CUE.gaze = false;
+
+    applyCueVisual(data, {
+      lip: false,
+      lean: false,
+      gaze: false,
+      muted: true,
+      speakerId: getCueSpeakerId(),
+    });
+
+    publishCueState(false, false, false, getCueSpeakerId(), {
+      muted: true,
+    });
+
+    return;
+  }
+
   updateCueDots(data, lipOpen, gazing, leaning);
 
   CUE.lip = lipOpen;
   CUE.lean = leaning;
   CUE.gaze = gazing;
 
-  /*
-    중요:
-    이제 local user가 speaker여도 effect를 끄지 않음.
-    그래서 내 화면에서도 내 lip+gaze / lip+lean 효과가 보임.
-  */
   applyLocalCues(lipOpen, leaning, gazing, data);
-  publishCueState(lipOpen, leaning, gazing, getCueSpeakerId());
+  publishCueState(lipOpen, leaning, gazing, getCueSpeakerId(), {
+    muted: false,
+  });
 }
 
 function updateCueDots(data, lip, gaze, lean) {
@@ -1359,6 +1408,7 @@ function applyLocalCues(lip, lean, gaze, data) {
     lean,
     gaze,
     speakerId: getCueSpeakerId(),
+    muted: !micEnabled || data?.isMuted,
   });
 }
 
@@ -1370,6 +1420,7 @@ function applyRemoteCues(identity, message) {
     lip: Boolean(message.lip),
     lean: Boolean(message.lean),
     gaze: Boolean(message.gaze),
+    muted: Boolean(message.muted) || data.isMuted,
     speakerId: message.speakerId || getCueSpeakerId(),
   });
 }
@@ -1395,12 +1446,19 @@ function shouldKeepExpanded(tile) {
 }
 
 function applyCueVisual(data, cue) {
+  if (!data) return;
+
   const tile = data.tile;
   if (!tile) return;
 
   const speakerId = cue.speakerId || getCueSpeakerId();
 
   clearCueClasses(tile);
+
+  if (cue.muted || data.isMuted) {
+    tile.classList.remove("center-expand", "expand-pulse");
+    return;
+  }
 
   if (cue.lip) {
     tile.classList.add("mouth-open");
@@ -1438,6 +1496,7 @@ function applyCueVisual(data, cue) {
 
 function triggerCenterPulse(data, pulseId) {
   if (!data || !data.tile) return;
+  if (data.isMuted) return;
 
   if (data.lastPulseId === pulseId) return;
   data.lastPulseId = pulseId;
@@ -1464,7 +1523,7 @@ function publishCueState(lip, lean, gaze, speakerId, extra = {}) {
 
   const now = Date.now();
 
-  const signature = `${lip}-${lean}-${gaze}-${speakerId || ""}-${extra.pulseId || ""}`;
+  const signature = `${lip}-${lean}-${gaze}-${speakerId || ""}-${extra.pulseId || ""}-${extra.muted || false}`;
 
   if (!extra.pulse && signature === lastCueSignature && now - lastCueSentAt < 220) {
     return;
@@ -1479,6 +1538,7 @@ function publishCueState(lip, lean, gaze, speakerId, extra = {}) {
     lean: Boolean(lean),
     gaze: Boolean(gaze),
     speakerId: speakerId || null,
+    muted: Boolean(extra.muted),
     ...extra,
   };
 
@@ -1506,6 +1566,12 @@ async function toggleMic() {
 
   const icon = $("mic-icon");
   const label = $("mic-label");
+  const localData = pMap.get(localIdentity);
+
+  if (localData) {
+    localData.isMuted = !micEnabled;
+    showMuteBadge(localData, !micEnabled);
+  }
 
   if (icon) icon.className = "ctrl-icon" + (micEnabled ? " on" : "");
 
@@ -1522,17 +1588,16 @@ async function toggleMic() {
 
     if (label) label.textContent = "Mic";
 
-    const localData = pMap.get(localIdentity);
-
     if (localData) {
       const pulseId = Date.now();
 
       lastUnmutePulseAt = pulseId;
       triggerCenterPulse(localData, pulseId);
 
-      publishCueState(CUE.lip, CUE.lean, CUE.gaze, getCueSpeakerId(), {
+      publishCueState(false, false, false, getCueSpeakerId(), {
         pulse: true,
         pulseId,
+        muted: false,
       });
     }
   } else {
@@ -1546,12 +1611,21 @@ async function toggleMic() {
     }
 
     if (label) label.textContent = "Muted";
-  }
 
-  const localData = pMap.get(localIdentity);
-  if (localData) {
-    localData.isMuted = !micEnabled;
-    showMuteBadge(localData, !micEnabled);
+    if (localData) {
+      updateCueDots(localData, false, false, false);
+      applyCueVisual(localData, {
+        lip: false,
+        lean: false,
+        gaze: false,
+        muted: true,
+        speakerId: getCueSpeakerId(),
+      });
+
+      publishCueState(false, false, false, getCueSpeakerId(), {
+        muted: true,
+      });
+    }
   }
 }
 
